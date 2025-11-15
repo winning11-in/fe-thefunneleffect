@@ -1,144 +1,233 @@
-import React, { useState } from 'react'
+import React, { useState } from "react";
 import {
   Box,
-  Paper,
   TextField,
   Button,
   Typography,
   Alert,
-  Container,
   InputAdornment,
   IconButton,
   Link,
-} from '@mui/material'
+} from "@mui/material";
 import {
-  Login as LoginIcon,
   Visibility,
   VisibilityOff,
-  AdminPanelSettings,
+  Person,
+  Lock,
 } from '@mui/icons-material'
-import { useNavigate, Link as RouterLink } from 'react-router-dom'
-import { useAuth } from '../contexts/AuthContext'
+import { useNavigate, Link as RouterLink } from "react-router-dom";
+import { useAuth } from "../contexts/AuthContext";
 
 const Login: React.FC = () => {
-  const { login } = useAuth()
-  const navigate = useNavigate()
+  const { login } = useAuth();
+  const navigate = useNavigate();
   const [formData, setFormData] = useState({
-    username: '',
-    password: '',
-  })
-  const [error, setError] = useState('')
-  const [loading, setLoading] = useState(false)
-  const [showPassword, setShowPassword] = useState(false)
+    username: "",
+    password: "",
+  });
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target
-    setFormData(prev => ({
+    const { name, value } = e.target;
+    setFormData((prev) => ({
       ...prev,
-      [name]: value
-    }))
-    setError('')
-  }
+      [name]: value,
+    }));
+    setError("");
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setLoading(true)
-    setError('')
+    e.preventDefault();
+    setLoading(true);
+    setError("");
 
     try {
-      const success = await login(formData.username, formData.password)
+      const success = await login(formData.username, formData.password);
       if (success) {
-        navigate('/')
+        navigate("/");
       } else {
-        setError('Invalid username or password')
+        setError("Invalid username or password");
       }
     } catch (err) {
-      setError('Login failed. Please try again.')
+      setError("Login failed. Please try again.");
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   const togglePasswordVisibility = () => {
-    setShowPassword(!showPassword)
-  }
+    setShowPassword(!showPassword);
+  };
 
   return (
-    <Container component="main" maxWidth="sm">
+    <Box
+      sx={{
+        minHeight: "100vh",
+        display: "flex",
+        backgroundColor: "#fff",
+      }}
+    >
+      {/* Left side - Form */}
       <Box
         sx={{
-          minHeight: '100vh',
-          display: 'flex',
-          flexDirection: 'column',
-          justifyContent: 'center',
-          alignItems: 'center',
+          flex: 1,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          px: 4,
         }}
       >
-        <Paper
-          elevation={6}
+        <Box
           sx={{
+            width: "100%",
+            maxWidth: 600,
             p: 4,
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            width: '100%',
-            maxWidth: 400,
           }}
         >
-          <Box
+          <Typography
+            variant="h4"
             sx={{
-              display: 'flex',
-              alignItems: 'center',
-              mb: 3,
+              fontWeight: 600,
+              color: "#2c3e50",
+              mb: 1,
+              fontSize: { xs: "1.75rem", md: "2.125rem" },
             }}
           >
-            <AdminPanelSettings sx={{ fontSize: 40, color: 'primary.main', mr: 1 }} />
-            <Typography component="h1" variant="h4">
-              DA CMS
-            </Typography>
-          </Box>
-          
-          <Typography component="h2" variant="h6" sx={{ mb: 3, color: 'text.secondary' }}>
-            Admin Login
+            Welcome back!
+          </Typography>
+
+          <Typography
+            variant="body1"
+            sx={{
+              color: "#6c757d",
+              mb: 4,
+              fontSize: "1rem",
+            }}
+          >
+            Enter your Credentials to access your account
           </Typography>
 
           {error && (
-            <Alert severity="error" sx={{ width: '100%', mb: 2 }}>
+            <Alert
+              severity="error"
+              sx={{
+                mb: 3,
+                borderRadius: 2,
+                "& .MuiAlert-message": {
+                  fontSize: "0.9rem",
+                },
+              }}
+            >
               {error}
             </Alert>
           )}
 
-          <Box component="form" onSubmit={handleSubmit} sx={{ width: '100%' }}>
+          <Box component="form" onSubmit={handleSubmit}>
+            <Typography
+              variant="body2"
+              sx={{
+                color: "#495057",
+                mb: 1,
+                fontWeight: 500,
+                fontSize: "0.875rem",
+              }}
+            >
+              Username
+            </Typography>
             <TextField
-              margin="normal"
-              required
               fullWidth
-              id="username"
-               name="username"
-              autoComplete="username"
-              autoFocus
+              name="username"
+              type="text"
+              placeholder="Enter your username"
               value={formData.username}
               onChange={handleChange}
               disabled={loading}
-            />
-            <TextField
-              margin="normal"
               required
+              sx={{
+                mb: 3,
+                "& .MuiOutlinedInput-root": {
+                  borderRadius: 2,
+                  backgroundColor: "#f8f9fa",
+                  border: "none",
+                  "& fieldset": {
+                    border: "1px solid #e9ecef",
+                  },
+                  "&:hover fieldset": {
+                    border: "1px solid #ced4da",
+                  },
+                  "&.Mui-focused fieldset": {
+                    border: "2px solid #4CAF50",
+                  },
+                },
+                "& .MuiInputBase-input": {
+                  padding: "12px 14px",
+                  fontSize: "1rem",
+                },
+              }}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <Person sx={{ color: "#6c757d", fontSize: "1.25rem" }} />
+                  </InputAdornment>
+                ),
+              }}
+            />
+
+            <Typography
+              variant="body2"
+              sx={{
+                color: "#495057",
+                mb: 1,
+                fontWeight: 500,
+                fontSize: "0.875rem",
+              }}
+            >
+              Password
+            </Typography>
+            <TextField
               fullWidth
               name="password"
-               type={showPassword ? 'text' : 'password'}
-              id="password"
-              autoComplete="current-password"
+              type={showPassword ? "text" : "password"}
+              placeholder="Enter your password"
               value={formData.password}
               onChange={handleChange}
               disabled={loading}
+              required
+              sx={{
+                mb: 2,
+                "& .MuiOutlinedInput-root": {
+                  borderRadius: 2,
+                  backgroundColor: "#f8f9fa",
+                  border: "none",
+                  "& fieldset": {
+                    border: "1px solid #e9ecef",
+                  },
+                  "&:hover fieldset": {
+                    border: "1px solid #ced4da",
+                  },
+                  "&.Mui-focused fieldset": {
+                    border: "2px solid #4CAF50",
+                  },
+                },
+                "& .MuiInputBase-input": {
+                  padding: "12px 14px",
+                  fontSize: "1rem",
+                },
+              }}
               InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <Lock sx={{ color: "#6c757d", fontSize: "1.25rem" }} />
+                  </InputAdornment>
+                ),
                 endAdornment: (
                   <InputAdornment position="end">
                     <IconButton
-                      aria-label="toggle password visibility"
                       onClick={togglePasswordVisibility}
                       edge="end"
+                      sx={{ color: "#6c757d" }}
                     >
                       {showPassword ? <VisibilityOff /> : <Visibility />}
                     </IconButton>
@@ -146,34 +235,95 @@ const Login: React.FC = () => {
                 ),
               }}
             />
+
+ 
+
             <Button
               type="submit"
               fullWidth
               variant="contained"
-              sx={{ 
-                mt: 3, 
-                mb: 2,
-                borderRadius: "8px",
-                textTransform: "none",
-                fontWeight: 500,
-                py: 1.5,
-              }}
               disabled={loading}
-              startIcon={<LoginIcon />}
+              sx={{
+                backgroundColor: "#4CAF50",
+                color: "white",
+                padding: "6px 0",
+                borderRadius: 2,
+                fontSize: "1rem",
+                fontWeight: 600,
+                textTransform: "none",
+                boxShadow: "none",
+
+                mb: 3,
+                mt: 2,
+                "&:hover": {
+                  backgroundColor: "#45a049",
+                  boxShadow: "none",
+                },
+                "&:disabled": {
+                  backgroundColor: "#c8e6c9",
+                },
+              }}
             >
-              {loading ? 'Signing in...' : 'Sign In'}
+              {loading ? "Signing in..." : "Login"}
             </Button>
-          </Box>
 
-          <Box sx={{ mt: 2, width: '100%', textAlign: 'center' }}>
-            <Link component={RouterLink} to="/signup" variant="body2">
-              Don't have an account? Sign up
-            </Link>
+            <Box sx={{ textAlign: "center" }}>
+              <Typography
+                variant="body2"
+                sx={{
+                  color: "#6c757d",
+                  fontSize: "0.875rem",
+                }}
+              >
+                Don't have an account?{" "}
+                <Link
+                  component={RouterLink}
+                  to="/signup"
+                  sx={{
+                    color: "#4CAF50",
+                    textDecoration: "none",
+                    fontWeight: 500,
+                    "&:hover": {
+                      textDecoration: "underline",
+                    },
+                  }}
+                >
+                  Sign up
+                </Link>
+              </Typography>
+            </Box>
           </Box>
-        </Paper>
+        </Box>
       </Box>
-    </Container>
-  )
-}
 
-export default Login
+      {/* Right side - Image */}
+      <Box
+        sx={{
+          flex: 1,
+          display: { xs: "none", md: "flex" },
+          alignItems: "center",
+          justifyContent: "center",
+          backgroundColor: "#ffffff",
+          backgroundImage:
+            'url("https://images.unsplash.com/photo-1505142468610-359e7d316be0?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80")',
+          backgroundSize: "cover",
+          backgroundPosition: "center",
+          position: "relative",
+          "&::before": {
+            content: '""',
+            position: "absolute",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: "rgba(255, 255, 255, 0.1)",
+          },
+        }}
+      >
+        {/* Optional overlay content can go here */}
+      </Box>
+    </Box>
+  );
+};
+
+export default Login;

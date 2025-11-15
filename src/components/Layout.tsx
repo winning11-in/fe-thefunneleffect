@@ -100,7 +100,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           <Home color="#fff" />
           {!isCollapsed && (
             <Typography variant="h6" noWrap component="div" sx={{ ml: 1 }}>
-              DA CMS
+              Funnel Effect CMS
             </Typography>
           )}
         </Box>

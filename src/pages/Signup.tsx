@@ -1,176 +1,304 @@
-import React, { useState } from 'react'
+import React, { useState } from "react";
 import {
   Box,
-  Paper,
   TextField,
   Button,
   Typography,
   Alert,
-  Container,
   InputAdornment,
   IconButton,
   Link,
-} from '@mui/material'
+} from "@mui/material";
 import {
-  PersonAdd as PersonAddIcon,
   Visibility,
   VisibilityOff,
-  AdminPanelSettings,
-} from '@mui/icons-material'
-import { Link as RouterLink, useNavigate } from 'react-router-dom'
-import axios from 'axios'
+  Email,
+  Lock,
+  Person,
+} from "@mui/icons-material";
+import { Link as RouterLink, useNavigate } from "react-router-dom";
+import axios from "axios";
 
 const Signup: React.FC = () => {
-  const navigate = useNavigate()
+  const navigate = useNavigate();
   const [formData, setFormData] = useState({
-    username: '',
-    email: '',
-    password: '',
-    confirmPassword: '',
-  })
-  const [error, setError] = useState('')
-  const [loading, setLoading] = useState(false)
-  const [showPassword, setShowPassword] = useState(false)
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
+    username: "",
+    email: "",
+    password: "",
+    confirmPassword: "",
+  });
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target
-    setFormData(prev => ({
+    const { name, value } = e.target;
+    setFormData((prev) => ({
       ...prev,
-      [name]: value
-    }))
-    setError('')
-  }
+      [name]: value,
+    }));
+    setError("");
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setLoading(true)
-    setError('')
+    e.preventDefault();
+    setLoading(true);
+    setError("");
 
     // Validate passwords match
     if (formData.password !== formData.confirmPassword) {
-      setError('Passwords do not match')
-      setLoading(false)
-      return
+      setError("Passwords do not match");
+      setLoading(false);
+      return;
     }
 
     try {
-      const response = await axios.post('https://be-thefunneleffect.vercel.app/api/auth/register', {
-        username: formData.username,
-        email: formData.email,
-        password: formData.password
-      })
+      const response = await axios.post(
+        "https://be-thefunneleffect.vercel.app/api/auth/register",
+        {
+          username: formData.username,
+          email: formData.email,
+          password: formData.password,
+        }
+      );
 
       if (response.data.token && response.data.user) {
-        navigate('/login')
+        navigate("/login");
       }
     } catch (err: any) {
-      const message = err.response?.data?.message || 'Registration failed. Please try again.'
-      setError(message)
+      const message =
+        err.response?.data?.message || "Registration failed. Please try again.";
+      setError(message);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   const togglePasswordVisibility = () => {
-    setShowPassword(!showPassword)
-  }
+    setShowPassword(!showPassword);
+  };
 
   const toggleConfirmPasswordVisibility = () => {
-    setShowConfirmPassword(!showConfirmPassword)
-  }
+    setShowConfirmPassword(!showConfirmPassword);
+  };
 
   return (
-    <Container component="main" maxWidth="sm">
+    <Box
+      sx={{
+        minHeight: "100vh",
+        display: "flex",
+        backgroundColor: "#fff",
+      }}
+    >
+      {/* Left side - Form */}
       <Box
         sx={{
-          minHeight: '100vh',
-          display: 'flex',
-          flexDirection: 'column',
-          justifyContent: 'center',
-          alignItems: 'center',
+          flex: 1,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          px: 4,
         }}
       >
-        <Paper
-          elevation={6}
+        <Box
           sx={{
+            width: "100%",
+            maxWidth: 600,
             p: 4,
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            width: '100%',
-            maxWidth: 400,
           }}
         >
-          <Box
+          <Typography
+            variant="h4"
             sx={{
-              display: 'flex',
-              alignItems: 'center',
-              mb: 3,
+              fontWeight: 600,
+              color: "#2c3e50",
+              mb: 1,
+              fontSize: { xs: "1.75rem", md: "2.125rem" },
             }}
           >
-            <AdminPanelSettings sx={{ fontSize: 40, color: 'primary.main', mr: 1 }} />
-            <Typography component="h1" variant="h4">
-              DA CMS
-            </Typography>
-          </Box>
+            Create Account
+          </Typography>
 
-          <Typography component="h2" variant="h6" sx={{ mb: 3, color: 'text.secondary' }}>
-            Create Admin Account
+          <Typography
+            variant="body1"
+            sx={{
+              color: "#6c757d",
+              mb: 4,
+              fontSize: "1rem",
+            }}
+          >
+            Enter your details to create your admin account
           </Typography>
 
           {error && (
-            <Alert severity="error" sx={{ width: '100%', mb: 2 }}>
+            <Alert
+              severity="error"
+              sx={{
+                mb: 3,
+                borderRadius: 2,
+                "& .MuiAlert-message": {
+                  fontSize: "0.9rem",
+                },
+              }}
+            >
               {error}
             </Alert>
           )}
 
-          <Box component="form" onSubmit={handleSubmit} sx={{ width: '100%' }}>
+          <Box component="form" onSubmit={handleSubmit}>
+            <Typography
+              variant="body2"
+              sx={{
+                color: "#495057",
+                mb: 1,
+                fontWeight: 500,
+                fontSize: "0.875rem",
+              }}
+            >
+              Username
+            </Typography>
             <TextField
-              margin="normal"
-              required
               fullWidth
-              id="username"
-              label="Username"
               name="username"
-              autoComplete="username"
-              autoFocus
+              placeholder="Enter your username"
               value={formData.username}
               onChange={handleChange}
               disabled={loading}
-            />
-            <TextField
-              margin="normal"
               required
+              sx={{
+                mb: 2,
+                "& .MuiOutlinedInput-root": {
+                  borderRadius: 2,
+                  backgroundColor: "#f8f9fa",
+                  border: "none",
+                  "& fieldset": {
+                    border: "1px solid #e9ecef",
+                  },
+                  "&:hover fieldset": {
+                    border: "1px solid #ced4da",
+                  },
+                  "&.Mui-focused fieldset": {
+                    border: "2px solid #4CAF50",
+                  },
+                },
+                "& .MuiInputBase-input": {
+                  padding: "12px 14px",
+                  fontSize: "1rem",
+                },
+              }}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <Person sx={{ color: "#6c757d", fontSize: "1.25rem" }} />
+                  </InputAdornment>
+                ),
+              }}
+            />
+
+            <Typography
+              variant="body2"
+              sx={{
+                color: "#495057",
+                mb: 1,
+                fontWeight: 500,
+                fontSize: "0.875rem",
+              }}
+            >
+              Email address
+            </Typography>
+            <TextField
               fullWidth
-              id="email"
-              label="Email Address"
               name="email"
-              autoComplete="email"
               type="email"
+              placeholder="Enter your email"
               value={formData.email}
               onChange={handleChange}
               disabled={loading}
-            />
-            <TextField
-              margin="normal"
               required
+              sx={{
+                mb: 2,
+                "& .MuiOutlinedInput-root": {
+                  borderRadius: 2,
+                  backgroundColor: "#f8f9fa",
+                  border: "none",
+                  "& fieldset": {
+                    border: "1px solid #e9ecef",
+                  },
+                  "&:hover fieldset": {
+                    border: "1px solid #ced4da",
+                  },
+                  "&.Mui-focused fieldset": {
+                    border: "2px solid #4CAF50",
+                  },
+                },
+                "& .MuiInputBase-input": {
+                  padding: "12px 14px",
+                  fontSize: "1rem",
+                },
+              }}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <Email sx={{ color: "#6c757d", fontSize: "1.25rem" }} />
+                  </InputAdornment>
+                ),
+              }}
+            />
+
+            <Typography
+              variant="body2"
+              sx={{
+                color: "#495057",
+                mb: 1,
+                fontWeight: 500,
+                fontSize: "0.875rem",
+              }}
+            >
+              Password
+            </Typography>
+            <TextField
               fullWidth
               name="password"
-              label="Password"
-              type={showPassword ? 'text' : 'password'}
-              id="password"
-              autoComplete="new-password"
+              type={showPassword ? "text" : "password"}
+              placeholder="Enter your password"
               value={formData.password}
               onChange={handleChange}
               disabled={loading}
+              required
+              sx={{
+                mb: 2,
+                "& .MuiOutlinedInput-root": {
+                  borderRadius: 2,
+                  backgroundColor: "#f8f9fa",
+                  border: "none",
+                  "& fieldset": {
+                    border: "1px solid #e9ecef",
+                  },
+                  "&:hover fieldset": {
+                    border: "1px solid #ced4da",
+                  },
+                  "&.Mui-focused fieldset": {
+                    border: "2px solid #4CAF50",
+                  },
+                },
+                "& .MuiInputBase-input": {
+                  padding: "12px 14px",
+                  fontSize: "1rem",
+                },
+              }}
               InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <Lock sx={{ color: "#6c757d", fontSize: "1.25rem" }} />
+                  </InputAdornment>
+                ),
                 endAdornment: (
                   <InputAdornment position="end">
                     <IconButton
-                      aria-label="toggle password visibility"
                       onClick={togglePasswordVisibility}
                       edge="end"
+                      sx={{ color: "#6c757d" }}
                     >
                       {showPassword ? <VisibilityOff /> : <Visibility />}
                     </IconButton>
@@ -178,25 +306,60 @@ const Signup: React.FC = () => {
                 ),
               }}
             />
+
+            <Typography
+              variant="body2"
+              sx={{
+                color: "#495057",
+                mb: 1,
+                fontWeight: 500,
+                fontSize: "0.875rem",
+              }}
+            >
+              Confirm Password
+            </Typography>
             <TextField
-              margin="normal"
-              required
               fullWidth
               name="confirmPassword"
-              label="Confirm Password"
-              type={showConfirmPassword ? 'text' : 'password'}
-              id="confirmPassword"
-              autoComplete="new-password"
+              type={showConfirmPassword ? "text" : "password"}
+              placeholder="Confirm your password"
               value={formData.confirmPassword}
               onChange={handleChange}
               disabled={loading}
+              required
+              sx={{
+                mb: 3,
+                "& .MuiOutlinedInput-root": {
+                  borderRadius: 2,
+                  backgroundColor: "#f8f9fa",
+                  border: "none",
+                  "& fieldset": {
+                    border: "1px solid #e9ecef",
+                  },
+                  "&:hover fieldset": {
+                    border: "1px solid #ced4da",
+                  },
+                  "&.Mui-focused fieldset": {
+                    border: "2px solid #4CAF50",
+                  },
+                },
+                "& .MuiInputBase-input": {
+                  padding: "12px 14px",
+                  fontSize: "1rem",
+                },
+              }}
               InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <Lock sx={{ color: "#6c757d", fontSize: "1.25rem" }} />
+                  </InputAdornment>
+                ),
                 endAdornment: (
                   <InputAdornment position="end">
                     <IconButton
-                      aria-label="toggle confirm password visibility"
                       onClick={toggleConfirmPasswordVisibility}
                       edge="end"
+                      sx={{ color: "#6c757d" }}
                     >
                       {showConfirmPassword ? <VisibilityOff /> : <Visibility />}
                     </IconButton>
@@ -204,34 +367,92 @@ const Signup: React.FC = () => {
                 ),
               }}
             />
+
             <Button
               type="submit"
               fullWidth
               variant="contained"
-              sx={{
-                mt: 3,
-                mb: 2,
-                borderRadius: "8px",
-                textTransform: "none",
-                fontWeight: 500,
-                py: 1.5,
-              }}
               disabled={loading}
-              startIcon={<PersonAddIcon />}
+              sx={{
+                backgroundColor: "#4CAF50",
+                color: "white",
+                padding: "6px 0",
+                borderRadius: 2,
+                fontSize: "1rem",
+                fontWeight: 600,
+                textTransform: "none",
+                mb: 3,
+                boxShadow: "none",
+
+                "&:hover": {
+                  backgroundColor: "#45a049",
+                  boxShadow: "none",
+                },
+                "&:disabled": {
+                  backgroundColor: "#c8e6c9",
+                },
+              }}
             >
-              {loading ? 'Creating Account...' : 'Create Account'}
+              {loading ? "Creating Account..." : "Create Account"}
             </Button>
-          </Box>
 
-          <Box sx={{ mt: 2, width: '100%', textAlign: 'center' }}>
-            <Link component={RouterLink} to="/login" variant="body2">
-              Already have an account? Sign in
-            </Link>
+            <Box sx={{ textAlign: "center" }}>
+              <Typography
+                variant="body2"
+                sx={{
+                  color: "#6c757d",
+                  fontSize: "0.875rem",
+                }}
+              >
+                Already have an account?{" "}
+                <Link
+                  component={RouterLink}
+                  to="/login"
+                  sx={{
+                    color: "#4CAF50",
+                    textDecoration: "none",
+                    fontWeight: 500,
+                    "&:hover": {
+                      textDecoration: "underline",
+                    },
+                  }}
+                >
+                  Sign in
+                </Link>
+              </Typography>
+            </Box>
           </Box>
-        </Paper>
+        </Box>
       </Box>
-    </Container>
-  )
-}
 
-export default Signup
+      {/* Right side - Image */}
+      <Box
+        sx={{
+          flex: 1,
+          display: { xs: "none", md: "flex" },
+          alignItems: "center",
+          justifyContent: "center",
+          backgroundColor: "#ffffff",
+          backgroundImage:
+            'url("https://images.unsplash.com/photo-1505142468610-359e7d316be0?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80")',
+          backgroundSize: "cover",
+          backgroundPosition: "center",
+          position: "relative",
+          "&::before": {
+            content: '""',
+            position: "absolute",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: "rgba(255, 255, 255, 0.1)",
+          },
+        }}
+      >
+        {/* Optional overlay content can go here */}
+      </Box>
+    </Box>
+  );
+};
+
+export default Signup;
