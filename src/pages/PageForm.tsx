@@ -19,7 +19,7 @@ import {
   Divider,
   IconButton,
 } from "@mui/material";
-import { Image, Audiotrack } from "@mui/icons-material";
+import { Image } from "@mui/icons-material";
 import { pagesAPI } from "../services/api";
 import SummernoteEditor, {
   SummernoteEditorRef,
@@ -460,7 +460,7 @@ const PageForm: React.FC = () => {
                   </Box>
                 </Grid>
 
-                <Grid item xs={12}>
+                {/* <Grid item xs={12}>
                   <Typography variant="body1" sx={{ mb: 1, fontSize: "13px" }}>
                     Audio URL
                   </Typography>
@@ -496,7 +496,7 @@ const PageForm: React.FC = () => {
                       <Audiotrack />
                     </IconButton>
                   </Box>
-                </Grid>
+                </Grid> */}
 
                 <Grid item xs={12}>
                   <Typography variant="body1" sx={{ mb: 1, fontSize: "13px" }}>
@@ -666,13 +666,24 @@ const PageForm: React.FC = () => {
                           </Box>
                         </Box>
                         {watchedEditorType === "summernote" ? (
-                          <SummernoteEditor
-                            ref={summernoteRef}
-                            value={field.value}
-                            onChange={field.onChange}
-                            placeholder="Enter your page content here..."
-                            height={800}
-                          />
+                          <Box
+                            sx={{
+                              "& .note-editable": {
+                                backgroundColor: "#ffffff",
+                                minHeight: "600px",
+                                lineHeight: "1.5 !important",
+                                fontFamily: "'Inter', sans-serif",
+                              },
+                            }}
+                          >
+                            <SummernoteEditor
+                              ref={summernoteRef}
+                              value={field.value}
+                              onChange={field.onChange}
+                              placeholder="Enter your page content here..."
+                              height={11800}
+                            />
+                          </Box>
                         ) : watchedEditorType === "quill" ? (
                           <QuillEditor
                             ref={quillRef}

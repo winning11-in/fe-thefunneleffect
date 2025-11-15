@@ -18,10 +18,10 @@ import {
   LayoutDashboard,
   FileText,
   LogOut,
-  Music,
-  ListMusic,
+  // Music,
+  // ListMusic,
   Upload,
-  AudioLines
+  // AudioLines
 } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext";
 
@@ -63,18 +63,18 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       icon: FileText,
       current: location.pathname === "/pages",
     },
-    {
-      name: "Tracks",
-      href: "/tracks",
-      icon: Music,
-      current: location.pathname === "/tracks",
-    },
-    {
-      name: "Playlists",
-      href: "/playlists",
-      icon: ListMusic,
-      current: location.pathname === "/playlists",
-    },
+    // {
+    //   name: "Tracks",
+    //   href: "/tracks",
+    //   icon: Music,
+    //   current: location.pathname === "/tracks",
+    // },
+    // {
+    //   name: "Playlists",
+    //   href: "/playlists",
+    //   icon: ListMusic,
+    //   current: location.pathname === "/playlists",
+    // },
   ];
 
   const isCollapsed = !isMobile;
@@ -175,7 +175,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
               {!isCollapsed && <ListItemText primary="Images" />}
             </ListItemButton>
           </ListItem>
-          <ListItem disablePadding sx={{ mb: 2 }}>
+          {/* <ListItem disablePadding sx={{ mb: 2 }}>
             <ListItemButton
               component={Link}
               to="/audios"
@@ -204,7 +204,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
               </ListItemIcon>
               {!isCollapsed && <ListItemText primary="Audios" />}
             </ListItemButton>
-          </ListItem>
+          </ListItem> */}
           <ListItem disablePadding>
             <ListItemButton
               component="button"

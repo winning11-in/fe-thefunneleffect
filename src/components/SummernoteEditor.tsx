@@ -31,7 +31,7 @@ export interface SummernoteEditorRef {
 }
 
 const SummernoteEditor = forwardRef<SummernoteEditorRef, SummernoteEditorProps>(
-  ({ value, onChange, placeholder = 'Enter content...', height = 300 }, ref) => {
+  ({ value, onChange, placeholder = 'Enter content...'}, ref) => {
     const editorRef = useRef<any>(null)
     const [isLoaded, setIsLoaded] = useState(false)
 
@@ -61,7 +61,7 @@ const SummernoteEditor = forwardRef<SummernoteEditorRef, SummernoteEditorProps>(
             if (el && !isLoaded) setIsLoaded(true)
           }}
           options={{
-            height: height,
+            height: 2000,
             placeholder: placeholder,
             toolbar: [
               ['style', ['style']],
