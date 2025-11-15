@@ -22,7 +22,7 @@ const CLOUDINARY_AUDIO_UPLOAD_PRESET = (import.meta as any).env?.VITE_CLOUDINARY
 
 // Create axios instance with default config
 const api = axios.create({
-  baseURL: 'https://da-pages-be.vercel.app/api',
+  baseURL: 'https://be-thefunneleffect.vercel.app/api',
   timeout: 10000,
   headers: {
     'Content-Type': 'application/json',

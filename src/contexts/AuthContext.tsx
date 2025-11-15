@@ -57,7 +57,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const verifyToken = async (token: string, retryCount = 0) => {
     try {
-      const response = await axios.get('https://da-pages-be.vercel.app/api/auth/verify', {
+      const response = await axios.get('https://be-thefunneleffect.vercel.app/api/auth/verify', {
         headers: {
           Authorization: `Bearer ${token}`
         },
@@ -89,7 +89,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const login = async (username: string, password: string): Promise<boolean> => {
     try {
-      const response = await axios.post('https://da-pages-be.vercel.app/api/auth/login', {
+      const response = await axios.post('https://be-thefunneleffect.vercel.app/api/auth/login', {
         username,
         password
       })

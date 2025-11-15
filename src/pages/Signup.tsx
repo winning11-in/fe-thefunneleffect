@@ -55,7 +55,7 @@ const Signup: React.FC = () => {
     }
 
     try {
-      const response = await axios.post('https://da-pages-be.vercel.app/api/auth/register', {
+      const response = await axios.post('https://be-thefunneleffect.vercel.app/api/auth/register', {
         username: formData.username,
         email: formData.email,
         password: formData.password
