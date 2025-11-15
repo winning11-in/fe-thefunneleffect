@@ -271,16 +271,81 @@ const ContactList: React.FC = () => {
         onClose={() => setDeleteDialogOpen(false)}
         maxWidth="sm"
         fullWidth
+        PaperProps={{
+          sx: {
+            borderRadius: 3,
+            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+          },
+        }}
       >
-        <DialogTitle>Delete Contact</DialogTitle>
-        <DialogContent>
-          <DialogContentText sx={{ mb: 2 }}>
-            Are you sure you want to delete the contact "{contactToDelete?.name}"?
-            This action cannot be undone.
-          </DialogContentText>
-          <DialogContentText sx={{ mb: 1 }}>
-            To confirm deletion, please type <strong>DELETE</strong> in the field below:
-          </DialogContentText>
+        <DialogTitle
+          sx={{
+            textAlign: 'center',
+            pb: 1,
+            pt: 3,
+            fontWeight: 600,
+            fontSize: '1.25rem',
+            color: 'error.main',
+          }}
+        >
+          🗑️ Delete Contact
+        </DialogTitle>
+        <DialogContent sx={{ px: 3, pb: 2 }}>
+          <Box sx={{ textAlign: 'center', mb: 3 }}>
+            <Typography
+              variant="body1"
+              sx={{
+                color: 'text.primary',
+                fontWeight: 500,
+                mb: 1,
+              }}
+            >
+              Are you sure you want to delete this contact?
+            </Typography>
+            <Typography
+              variant="body2"
+              sx={{
+                color: 'text.secondary',
+                fontStyle: 'italic',
+              }}
+            >
+              "{contactToDelete?.name}"
+            </Typography>
+          </Box>
+
+          <Box
+            sx={{
+              bgcolor: 'error.light',
+              borderRadius: 2,
+              p: 2,
+              mb: 3,
+              border: '1px solid',
+              borderColor: 'error.main',
+            }}
+          >
+            <Typography
+              variant="body2"
+              sx={{
+                color: 'error.contrastText',
+                fontWeight: 500,
+                textAlign: 'center',
+              }}
+            >
+              ⚠️ This action cannot be undone. The contact will be permanently removed.
+            </Typography>
+          </Box>
+
+          <Typography
+            variant="body2"
+            sx={{
+              mb: 2,
+              color: 'text.secondary',
+              textAlign: 'center',
+            }}
+          >
+            To confirm deletion, please type <strong style={{ color: 'error.main' }}>DELETE</strong> below:
+          </Typography>
+
           <TextField
             autoFocus
             fullWidth
@@ -288,15 +353,59 @@ const ContactList: React.FC = () => {
             placeholder="Type DELETE to confirm"
             value={deleteConfirmationText}
             onChange={(e) => setDeleteConfirmationText(e.target.value)}
-            sx={{ mt: 1 }}
+            sx={{
+              '& .MuiOutlinedInput-root': {
+                borderRadius: 2,
+                bgcolor: 'grey.50',
+                '&:hover': {
+                  bgcolor: 'grey.100',
+                },
+                '&.Mui-focused': {
+                  bgcolor: 'background.paper',
+                },
+              },
+            }}
+            inputProps={{
+              style: { textAlign: 'center', fontWeight: 500 },
+            }}
           />
+
+          {deleteConfirmationText && deleteConfirmationText !== 'DELETE' && (
+            <Typography
+              variant="caption"
+              sx={{
+                color: 'error.main',
+                textAlign: 'center',
+                mt: 1,
+                display: 'block',
+              }}
+            >
+              Please type "DELETE" exactly to confirm
+            </Typography>
+          )}
         </DialogContent>
-        <DialogActions>
+
+        <DialogActions
+          sx={{
+            px: 3,
+            pb: 3,
+            pt: 0,
+            justifyContent: 'center',
+            gap: 2,
+          }}
+        >
           <Button
             onClick={() => {
               setDeleteDialogOpen(false);
               setContactToDelete(null);
-              setDeleteConfirmationText("");
+              setDeleteConfirmationText('');
+            }}
+            variant="outlined"
+            sx={{
+              borderRadius: 2,
+              px: 3,
+              textTransform: 'none',
+              fontWeight: 500,
             }}
           >
             Cancel
@@ -305,12 +414,23 @@ const ContactList: React.FC = () => {
             onClick={confirmDelete}
             color="error"
             variant="contained"
-            disabled={deleteConfirmationText !== "DELETE" || deleting === contactToDelete?._id}
+            disabled={deleteConfirmationText !== 'DELETE' || deleting === contactToDelete?._id}
+            sx={{
+              borderRadius: 2,
+              px: 3,
+              textTransform: 'none',
+              fontWeight: 500,
+              minWidth: 100,
+              '&:disabled': {
+                bgcolor: 'grey.300',
+                color: 'grey.500',
+              },
+            }}
           >
             {deleting === contactToDelete?._id ? (
-              <CircularProgress size={20} />
+              <CircularProgress size={20} color="inherit" />
             ) : (
-              "Delete"
+              'Delete Contact'
             )}
           </Button>
         </DialogActions>
