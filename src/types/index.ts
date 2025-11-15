@@ -45,6 +45,16 @@ export interface Playlist {
   updatedAt: string;
 }
 
+export interface Contact {
+  _id: string;
+  name: string;
+  email: string;
+  mobile: string;
+  description: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface Image {
   public_id: string;
   secure_url: string;
@@ -141,6 +151,15 @@ export interface ApiResponse<T> {
   success: boolean;
   data: T;
   message?: string;
+}
+
+export interface ContactPaginatedResponse {
+  success: boolean;
+  data: Contact[];
+  page: number;
+  totalPages: number;
+  total: number;
+  limit: number;
 }
 
 export interface ErrorResponse {

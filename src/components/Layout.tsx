@@ -18,9 +18,10 @@ import {
   LayoutDashboard,
   FileText,
   LogOut,
+  Upload,
+  Mail,
   // Music,
   // ListMusic,
-  Upload,
   // AudioLines
 } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext";
@@ -173,6 +174,36 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                 <Upload />
               </ListItemIcon>
               {!isCollapsed && <ListItemText primary="Images" />}
+            </ListItemButton>
+          </ListItem>
+          <ListItem disablePadding sx={{ mb: 2 }}>
+            <ListItemButton
+              component={Link}
+              to="/contacts"
+              onClick={() => isMobile && setMobileOpen(false)}
+              sx={{
+                justifyContent: isCollapsed ? "center" : "flex-start",
+                px: 1,
+                backgroundColor:
+                  location.pathname === "/contacts" ? "#5a55d8" : "transparent",
+                "&:hover": {
+                  backgroundColor:
+                    location.pathname === "/contacts"
+                      ? "#5a55d8"
+                      : "rgba(255, 255, 255, 0.1)",
+                },
+              }}
+            >
+              <ListItemIcon
+                sx={{
+                  minWidth: "auto",
+                  mr: isCollapsed ? 0 : 2,
+                  color: "#fff",
+                }}
+              >
+                <Mail />
+              </ListItemIcon>
+              {!isCollapsed && <ListItemText primary="Contacts" />}
             </ListItemButton>
           </ListItem>
           {/* <ListItem disablePadding sx={{ mb: 2 }}>

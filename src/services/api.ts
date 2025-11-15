@@ -10,6 +10,7 @@ import type {
   Playlist,
   CreatePlaylistData,
   UpdatePlaylistData,
+  ContactPaginatedResponse,
   PaginatedResponse, 
   ApiResponse,
   AudioFoldersResponse
@@ -364,6 +365,30 @@ export const getAudioFolders = async (): Promise<AudioFoldersResponse> => {
   } catch (error) {
     console.error('Failed to fetch audio folders:', error)
     toast.error('Failed to load audio folders')
+    throw error
+  }
+}
+
+// Contact API functions
+export const getContacts = async (page: number = 1, limit: number = 10): Promise<ContactPaginatedResponse> => {
+  try {
+    const response: AxiosResponse<ContactPaginatedResponse> = await api.get(`/contacts?page=${page}&limit=${limit}`)
+    return response.data
+  } catch (error) {
+    console.error('Failed to fetch contacts:', error)
+    toast.error('Failed to load contacts')
+    throw error
+  }
+}
+
+export const deleteContact = async (id: string): Promise<ApiResponse<any>> => {
+  try {
+    const response: AxiosResponse<ApiResponse<any>> = await api.delete(`/contacts/${id}`)
+    toast.success('Contact deleted successfully!')
+    return response.data
+  } catch (error) {
+    console.error('Failed to delete contact:', error)
+    toast.error('Failed to delete contact')
     throw error
   }
 }

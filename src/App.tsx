@@ -17,6 +17,7 @@ import PlaylistDetail from './pages/PlaylistDetail'
 import Images from './pages/Images'
 import Audios from './pages/Audios'
 import FolderAudios from './pages/FolderAudios'
+import ContactList from './pages/ContactList'
 
 function App() {
   return (
@@ -45,6 +46,7 @@ function App() {
                     <Route path="/images" element={<Images />} />
                     <Route path="/audios" element={<Audios />} />
                     <Route path="/audios/folder/:folderPath" element={<FolderAudios />} />
+                    <Route path="/contacts" element={<ContactList />} />
                   </Routes>
                 </Layout>
               </ProtectedRoute>
