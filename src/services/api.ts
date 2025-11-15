@@ -370,6 +370,22 @@ export const getAudioFolders = async (): Promise<AudioFoldersResponse> => {
 }
 
 // Contact API functions
+export const contactsAPI = {
+  // Get all contacts with optional query parameters
+  getAll: async (params: Record<string, any> = {}): Promise<ContactPaginatedResponse> => {
+    const response: AxiosResponse<ContactPaginatedResponse> = await api.get('/contacts', { params })
+    return response.data
+  },
+
+  // Delete contact
+  delete: async (id: string): Promise<ApiResponse<any>> => {
+    const response: AxiosResponse<ApiResponse<any>> = await api.delete(`/contacts/${id}`)
+    toast.success('Contact deleted successfully!')
+    return response.data
+  },
+}
+
+// Legacy contact functions (kept for backward compatibility)
 export const getContacts = async (page: number = 1, limit: number = 10): Promise<ContactPaginatedResponse> => {
   try {
     const response: AxiosResponse<ContactPaginatedResponse> = await api.get(`/contacts?page=${page}&limit=${limit}`)

@@ -6,6 +6,7 @@ import tracksSlice from './slices/tracksSlice'
 import playlistsSlice from './slices/playlistsSlice'
 import imagesSlice from './slices/imagesSlice'
 import audiosSlice from './slices/audiosSlice'
+import contactsSlice from './slices/contactsSlice'
 
 export const store = configureStore({
   reducer: {
@@ -16,6 +17,7 @@ export const store = configureStore({
     playlists: playlistsSlice,
     images: imagesSlice,
     audios: audiosSlice,
+    contacts: contactsSlice,
   },
 })
 

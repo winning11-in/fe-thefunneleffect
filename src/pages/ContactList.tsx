@@ -10,6 +10,8 @@ import {
   DialogContentText,
   DialogActions,
   Tooltip,
+  TextField,
+  InputAdornment,
 } from "@mui/material";
 import {
   DataGrid,
@@ -21,47 +23,87 @@ import {
   Delete as DeleteIcon,
   Refresh as RefreshIcon,
   Visibility as VisibilityIcon,
+  Search as SearchIcon,
 } from "@mui/icons-material";
-import { getContacts, deleteContact } from "../services/api";
-import type { Contact, ContactPaginatedResponse } from "../types";
+import { useAppDispatch, useAppSelector } from "../store/hooks";
+import {
+  fetchContacts,
+  deleteContactById,
+  setPagination,
+  clearError,
+} from "../store/slices/contactsSlice";
+import type { Contact } from "../types";
 import TableSkeleton from "../components/TableSkeleton";
 
 const ContactList: React.FC = () => {
-  const [contacts, setContacts] = useState<Contact[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [pagination, setPagination] = useState({
-    page: 1,
-    pageSize: 10,
-    totalItems: 0,
-  });
+  const dispatch = useAppDispatch();
+  const {
+    items: contacts,
+    loading,
+    error,
+    pagination,
+  } = useAppSelector((state) => state.contacts);
+
+  const [searchTerm, setSearchTerm] = useState("");
+  const [searchInput, setSearchInput] = useState("");
+  const [searchTimeout, setSearchTimeout] = useState<NodeJS.Timeout | null>(null);
   const [descriptionDialogOpen, setDescriptionDialogOpen] = useState(false);
   const [selectedDescription, setSelectedDescription] = useState("");
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [contactToDelete, setContactToDelete] = useState<Contact | null>(null);
 
-  const fetchContacts = async (page = 1, pageSize = 10) => {
-    try {
-      setLoading(true);
-      setError(null);
-      const response: ContactPaginatedResponse = await getContacts(page, pageSize);
-      setContacts(response.data);
-      setPagination({
-        page: response.page,
-        pageSize: pageSize,
-        totalItems: response.total,
-      });
-    } catch (err) {
-      console.error("Failed to fetch contacts:", err);
-      setError("Failed to load contacts");
-    } finally {
-      setLoading(false);
+  useEffect(() => {
+    // Fetch contacts when pagination changes or search term changes
+    dispatch(
+      fetchContacts({
+        page: pagination.page,
+        pageSize: pagination.pageSize,
+        search: searchTerm,
+      })
+    );
+  }, [dispatch, pagination.page, pagination.pageSize, searchTerm]);
+
+  // Clear error when component unmounts
+  useEffect(() => {
+    return () => {
+      if (error) {
+        dispatch(clearError());
+      }
+    };
+  }, [dispatch, error]);
+
+  const handleSearchChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const value = event.target.value;
+    setSearchInput(value);
+    
+    // Clear existing timeout
+    if (searchTimeout) {
+      clearTimeout(searchTimeout);
     }
+    
+    // Set new timeout for debounced search
+    const timeout = setTimeout(() => {
+      setSearchTerm(value);
+      // Reset to first page when searching
+      dispatch(
+        setPagination({
+          page: 1,
+          pageSize: pagination.pageSize,
+        })
+      );
+    }, 500);
+    
+    setSearchTimeout(timeout);
   };
 
+  // Cleanup timeout on unmount
   useEffect(() => {
-    fetchContacts();
-  }, []);
+    return () => {
+      if (searchTimeout) {
+        clearTimeout(searchTimeout);
+      }
+    };
+  }, [searchTimeout]);
 
   const handleDelete = (contact: Contact) => {
     setContactToDelete(contact);
@@ -72,20 +114,22 @@ const ContactList: React.FC = () => {
     if (!contactToDelete) return;
 
     try {
-      await deleteContact(contactToDelete._id);
-      // Remove the deleted contact from the list
-      setContacts(contacts.filter((c) => c._id !== contactToDelete._id));
-      setPagination(prev => ({
-        ...prev,
-        totalItems: prev.totalItems - 1,
-      }));
+      await dispatch(deleteContactById(contactToDelete._id));
       setDeleteDialogOpen(false);
       setContactToDelete(null);
-    } catch (err) {
-      console.error("Failed to delete contact:", err);
-      setError("Failed to delete contact");
-      setDeleteDialogOpen(false);
-      setContactToDelete(null);
+      
+      // If this was the last item on the current page and we're not on page 1,
+      // go back to the previous page
+      if (contacts.length === 1 && pagination.page > 1) {
+        dispatch(
+          setPagination({
+            page: pagination.page - 1,
+            pageSize: pagination.pageSize,
+          })
+        );
+      }
+    } catch (error) {
+      console.error("Error deleting contact:", error);
     }
   };
 
@@ -93,12 +137,28 @@ const ContactList: React.FC = () => {
     page: number;
     pageSize: number;
   }) => {
-    setPagination(prev => ({
-      ...prev,
-      page: newPaginationModel.page + 1, // Convert to 1-based
-      pageSize: newPaginationModel.pageSize,
-    }));
-    fetchContacts(newPaginationModel.page + 1, newPaginationModel.pageSize);
+    const newPage = newPaginationModel.page + 1; // Convert to 1-based
+    const newPageSize = newPaginationModel.pageSize;
+    
+    // Only dispatch if pagination actually changed
+    if (newPage !== pagination.page || newPageSize !== pagination.pageSize) {
+      dispatch(
+        setPagination({
+          page: newPage,
+          pageSize: newPageSize,
+        })
+      );
+    }
+  };
+
+  const handleRefresh = () => {
+    dispatch(
+      fetchContacts({
+        page: pagination.page,
+        pageSize: pagination.pageSize,
+        search: searchTerm,
+      })
+    );
   };
 
   const handleViewDescription = (description: string) => {
@@ -225,7 +285,7 @@ const ContactList: React.FC = () => {
   }
 
   return (
-    <Box  >
+    <Box>
       {/* Header */}
       <Box
         sx={{
@@ -239,12 +299,11 @@ const ContactList: React.FC = () => {
           <Typography variant="h6" component="h1">
             Contact Messages
           </Typography>
-         
         </Box>
         <Button
           variant="contained"
           startIcon={<RefreshIcon />}
-          onClick={() => fetchContacts(pagination.page, pagination.pageSize)}
+          onClick={handleRefresh}
           sx={{
             borderRadius: "8px",
             textTransform: "none",
@@ -257,9 +316,50 @@ const ContactList: React.FC = () => {
         </Button>
       </Box>
 
+      {/* Search */}
+      <Box sx={{ display: "flex", gap: 2, mb: 2, alignItems: "center" }}>
+        <TextField
+          placeholder="Search contacts..."
+          value={searchInput}
+          onChange={handleSearchChange}
+          InputProps={{
+            startAdornment: (
+              <InputAdornment position="start">
+                <SearchIcon fontSize="small" />
+              </InputAdornment>
+            ),
+          }}
+          sx={{
+            minWidth: 300,
+            "& .MuiOutlinedInput-root": {
+              borderRadius: "8px",
+            },
+          }}
+          size="small"
+        />
+        
+        {searchTerm && (
+          <Typography variant="body2" color="text.secondary">
+            Searching for: "{searchTerm}"
+          </Typography>
+        )}
+      </Box>
+
       {error && (
         <Alert severity="error" sx={{ mb: 2 }}>
           {error}
+        </Alert>
+      )}
+
+      {!loading && contacts.length === 0 && searchTerm && (
+        <Alert severity="info" sx={{ mb: 2 }}>
+          No contacts found matching "{searchTerm}". Try adjusting your search terms.
+        </Alert>
+      )}
+
+      {!loading && contacts.length === 0 && !searchTerm && (
+        <Alert severity="info" sx={{ mb: 2 }}>
+          No contact messages found.
         </Alert>
       )}
 
@@ -273,12 +373,12 @@ const ContactList: React.FC = () => {
             pageSize: pagination.pageSize,
           }}
           onPaginationModelChange={handlePaginationChange}
-          pageSizeOptions={[5, 10, 25]}
+          pageSizeOptions={[5, 10, 25, 50]}
           rowCount={pagination.totalItems}
           paginationMode="server"
-          loading={loading}
+          loading={loading && contacts.length === 0}
           slots={{
-            loadingOverlay: () => <TableSkeleton columns={4} />,
+            loadingOverlay: () => <TableSkeleton columns={5} />,
           }}
           disableRowSelectionOnClick
           sx={{

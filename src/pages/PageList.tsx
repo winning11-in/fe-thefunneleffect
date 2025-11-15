@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo } from "react";
+import React, { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Box,
@@ -14,10 +14,6 @@ import {
   InputAdornment,
   Chip,
   Tooltip,
-  FormControl,
-  Select,
-  MenuItem,
-  SelectChangeEvent,
 } from "@mui/material";
 import {
   DataGrid,
@@ -49,52 +45,27 @@ const PageList: React.FC = () => {
     loading,
     error,
     pagination,
-    lastFetched,
   } = useAppSelector((state) => state.pages);
 
   const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false);
   const [pageToDelete, setPageToDelete] = React.useState<Page | null>(null);
-  const [titleFilter, setTitleFilter] = React.useState("");
-  const [selectedGroups, setSelectedGroups] = React.useState<string[]>([]);
+  const [searchTerm, setSearchTerm] = React.useState("");
+  const [searchInput, setSearchInput] = React.useState(""); // Local input state
+  const [searchTimeout, setSearchTimeout] = React.useState<NodeJS.Timeout | null>(null);
 
   const [imageDialogOpen, setImageDialogOpen] = React.useState(false);
   const [selectedImage, setSelectedImage] = React.useState<string>("");
 
-  // Get unique groups for filter dropdown
-  const availableGroups = useMemo(() => {
-    const groups = new Set<string>();
-    pages.forEach((page) => page.groups.forEach((group) => groups.add(group)));
-    return Array.from(groups).sort();
-  }, [pages]);
-
-  // Client-side filtering
-  const filteredPages = useMemo(() => {
-    return pages.filter((page) => {
-      const matchesTitle =
-        titleFilter === "" ||
-        page.title.toLowerCase().includes(titleFilter.toLowerCase());
-      const matchesGroups =
-        selectedGroups.length === 0 ||
-        selectedGroups.some((group) => page.groups.includes(group));
-      return matchesTitle && matchesGroups;
-    });
-  }, [pages, titleFilter, selectedGroups]);
-
   useEffect(() => {
-    // Only fetch if we haven't fetched recently or if pagination changed
-    const CACHE_DURATION = 2 * 60 * 1000; // 2 minutes for pages list
-    const shouldFetch =
-      !lastFetched || Date.now() - lastFetched > CACHE_DURATION;
-
-    if (shouldFetch || pagination.page !== 1 || pagination.pageSize !== 10) {
-      dispatch(
-        fetchPages({
-          page: pagination.page,
-          pageSize: pagination.pageSize,
-        })
-      );
-    }
-  }, [dispatch, pagination.page, pagination.pageSize, lastFetched]);
+    // Fetch pages when pagination changes or search term changes
+    dispatch(
+      fetchPages({
+        page: pagination.page,
+        pageSize: pagination.pageSize,
+        search: searchTerm,
+      })
+    );
+  }, [dispatch, pagination.page, pagination.pageSize, searchTerm]);
 
   const handleEdit = (id: string) => {
     navigate(`/pages/edit/${id}`);
@@ -112,32 +83,71 @@ const PageList: React.FC = () => {
       await dispatch(deletePage(pageToDelete._id));
       setDeleteDialogOpen(false);
       setPageToDelete(null);
+      
+      // If this was the last item on the current page and we're not on page 1,
+      // go back to the previous page
+      if (pages.length === 1 && pagination.page > 1) {
+        dispatch(
+          setPagination({
+            page: pagination.page - 1,
+            pageSize: pagination.pageSize,
+          })
+        );
+      }
     } catch (error) {
       console.error("Error deleting page:", error);
     }
   };
 
-  const handleTitleFilterChange = (
-    event: React.ChangeEvent<HTMLInputElement>
-  ) => {
-    setTitleFilter(event.target.value);
+  const handleSearchChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const value = event.target.value;
+    setSearchInput(value); // Update local input immediately
+    
+    // Clear existing timeout
+    if (searchTimeout) {
+      clearTimeout(searchTimeout);
+    }
+    
+    // Set new timeout for debounced search
+    const timeout = setTimeout(() => {
+      setSearchTerm(value);
+      // Reset to first page when searching
+      dispatch(
+        setPagination({
+          page: 1,
+          pageSize: pagination.pageSize,
+        })
+      );
+    }, 500);
+    
+    setSearchTimeout(timeout);
   };
 
-  const handleGroupsFilterChange = (event: SelectChangeEvent<string[]>) => {
-    const value = event.target.value as string[];
-    setSelectedGroups(value);
-  };
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (searchTimeout) {
+        clearTimeout(searchTimeout);
+      }
+    };
+  }, [searchTimeout]);
 
   const handlePaginationChange = (newPaginationModel: {
     page: number;
     pageSize: number;
   }) => {
-    dispatch(
-      setPagination({
-        page: newPaginationModel.page + 1, // Convert to 1-based
-        pageSize: newPaginationModel.pageSize,
-      })
-    );
+    const newPage = newPaginationModel.page + 1; // Convert to 1-based
+    const newPageSize = newPaginationModel.pageSize;
+    
+    // Only dispatch if pagination actually changed
+    if (newPage !== pagination.page || newPageSize !== pagination.pageSize) {
+      dispatch(
+        setPagination({
+          page: newPage,
+          pageSize: newPageSize,
+        })
+      );
+    }
   };
 
   const handlePreview = (page: Page) => {
@@ -308,9 +318,9 @@ const PageList: React.FC = () => {
 
       <Box sx={{ display: "flex", gap: 2, mb: 2, alignItems: "center" }}>
         <TextField
-          placeholder="Search by title..."
-          value={titleFilter}
-          onChange={handleTitleFilterChange}
+          placeholder="Search pages..."
+          value={searchInput}
+          onChange={handleSearchChange}
           InputProps={{
             startAdornment: (
               <InputAdornment position="start">
@@ -326,33 +336,12 @@ const PageList: React.FC = () => {
           }}
           size="small"
         />
-
-        <FormControl sx={{ minWidth: 200 }}>
-          <Select
-            multiple
-            value={selectedGroups}
-            onChange={handleGroupsFilterChange}
-            renderValue={(selected) => (
-              <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5 }}>
-                {(selected as string[]).map((value) => (
-                  <Chip key={value} label={value} size="small" />
-                ))}
-              </Box>
-            )}
-            sx={{
-              "& .MuiOutlinedInput-root": {
-                borderRadius: "8px",
-              },
-            }}
-            size="small"
-          >
-            {availableGroups.map((group) => (
-              <MenuItem key={group} value={group}>
-                {group}
-              </MenuItem>
-            ))}
-          </Select>
-        </FormControl>
+        
+        {searchTerm && (
+          <Typography variant="body2" color="text.secondary">
+            Searching for: "{searchTerm}"
+          </Typography>
+        )}
       </Box>
 
       {error && (
@@ -361,9 +350,21 @@ const PageList: React.FC = () => {
         </Alert>
       )}
 
+      {!loading && pages.length === 0 && searchTerm && (
+        <Alert severity="info" sx={{ mb: 2 }}>
+          No pages found matching "{searchTerm}". Try adjusting your search terms.
+        </Alert>
+      )}
+
+      {!loading && pages.length === 0 && !searchTerm && (
+        <Alert severity="info" sx={{ mb: 2 }}>
+          No pages found. Create your first page to get started.
+        </Alert>
+      )}
+
       <Box sx={{ height: 600, width: "100%" }}>
         <DataGrid
-          rows={loading ? [] : filteredPages}
+          rows={pages}
           columns={columns}
           getRowId={(row) => row._id}
           paginationModel={{
@@ -371,7 +372,7 @@ const PageList: React.FC = () => {
             pageSize: pagination.pageSize,
           }}
           onPaginationModelChange={handlePaginationChange}
-          pageSizeOptions={[5, 10, 25]}
+          pageSizeOptions={[5, 10, 25, 50]}
           rowCount={pagination.totalItems}
           paginationMode="server"
           loading={loading}

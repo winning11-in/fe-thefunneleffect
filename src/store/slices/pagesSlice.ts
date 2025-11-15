@@ -93,9 +93,12 @@ const pagesSlice = createSlice({
       .addCase(fetchPages.fulfilled, (state, action) => {
         state.loading = false
         state.items = action.payload.pages
+        // Update pagination with response data, keeping page and pageSize from state
         state.pagination = {
-          ...state.pagination,
-          ...action.payload.pagination,
+          page: state.pagination.page,
+          pageSize: state.pagination.pageSize,
+          totalItems: action.payload.pagination.totalItems,
+          totalPages: action.payload.pagination.totalPages,
         }
         state.searchTerm = action.payload.searchTerm
         state.lastFetched = Date.now()
