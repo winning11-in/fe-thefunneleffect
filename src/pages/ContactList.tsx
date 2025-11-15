@@ -3,24 +3,20 @@ import {
   Box,
   Typography,
   Button,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  Paper,
-  IconButton,
-  Pagination,
-  CircularProgress,
+  Alert,
   Dialog,
   DialogTitle,
   DialogContent,
   DialogContentText,
   DialogActions,
   Tooltip,
-  TextField,
 } from "@mui/material";
+import {
+  DataGrid,
+  GridColDef,
+  GridActionsCellItem,
+  GridRowParams,
+} from "@mui/x-data-grid";
 import {
   Delete as DeleteIcon,
   Refresh as RefreshIcon,
@@ -28,30 +24,36 @@ import {
 } from "@mui/icons-material";
 import { getContacts, deleteContact } from "../services/api";
 import type { Contact, ContactPaginatedResponse } from "../types";
+import TableSkeleton from "../components/TableSkeleton";
 
 const ContactList: React.FC = () => {
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [loading, setLoading] = useState(true);
-  const [deleting, setDeleting] = useState<string | null>(null);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const [totalContacts, setTotalContacts] = useState(0);
-  const [selectedDescription, setSelectedDescription] = useState<string>("");
-  const [showDescriptionDialog, setShowDescriptionDialog] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [pagination, setPagination] = useState({
+    page: 1,
+    pageSize: 10,
+    totalItems: 0,
+  });
+  const [descriptionDialogOpen, setDescriptionDialogOpen] = useState(false);
+  const [selectedDescription, setSelectedDescription] = useState("");
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [contactToDelete, setContactToDelete] = useState<Contact | null>(null);
-  const [deleteConfirmationText, setDeleteConfirmationText] = useState("");
 
-  const fetchContacts = async (page = 1) => {
+  const fetchContacts = async (page = 1, pageSize = 10) => {
     try {
       setLoading(true);
-      const response: ContactPaginatedResponse = await getContacts(page, 10);
+      setError(null);
+      const response: ContactPaginatedResponse = await getContacts(page, pageSize);
       setContacts(response.data);
-      setCurrentPage(response.page);
-      setTotalPages(response.totalPages);
-      setTotalContacts(response.total);
-    } catch (error) {
-      console.error("Failed to fetch contacts:", error);
+      setPagination({
+        page: response.page,
+        pageSize: pageSize,
+        totalItems: response.total,
+      });
+    } catch (err) {
+      console.error("Failed to fetch contacts:", err);
+      setError("Failed to load contacts");
     } finally {
       setLoading(false);
     }
@@ -64,33 +66,44 @@ const ContactList: React.FC = () => {
   const handleDelete = (contact: Contact) => {
     setContactToDelete(contact);
     setDeleteDialogOpen(true);
-    setDeleteConfirmationText("");
   };
 
   const confirmDelete = async () => {
-    if (!contactToDelete || deleteConfirmationText !== "DELETE") return;
+    if (!contactToDelete) return;
 
     try {
-      setDeleting(contactToDelete._id);
       await deleteContact(contactToDelete._id);
       // Remove the deleted contact from the list
-      setContacts(contacts.filter((contact) => contact._id !== contactToDelete._id));
-      setTotalContacts((prev) => prev - 1);
+      setContacts(contacts.filter((c) => c._id !== contactToDelete._id));
+      setPagination(prev => ({
+        ...prev,
+        totalItems: prev.totalItems - 1,
+      }));
       setDeleteDialogOpen(false);
       setContactToDelete(null);
-    } catch (error) {
-      console.error("Failed to delete contact:", error);
-    } finally {
-      setDeleting(null);
+    } catch (err) {
+      console.error("Failed to delete contact:", err);
+      setError("Failed to delete contact");
+      setDeleteDialogOpen(false);
+      setContactToDelete(null);
     }
   };
 
-  const handlePageChange = (
-    event: React.ChangeEvent<unknown>,
-    page: number
-  ) => {
-    fetchContacts(page);
-    console.log("event", event);
+  const handlePaginationChange = (newPaginationModel: {
+    page: number;
+    pageSize: number;
+  }) => {
+    setPagination(prev => ({
+      ...prev,
+      page: newPaginationModel.page + 1, // Convert to 1-based
+      pageSize: newPaginationModel.pageSize,
+    }));
+    fetchContacts(newPaginationModel.page + 1, newPaginationModel.pageSize);
+  };
+
+  const handleViewDescription = (description: string) => {
+    setSelectedDescription(description);
+    setDescriptionDialogOpen(true);
   };
 
   const formatDate = (dateString: string) => {
@@ -108,20 +121,105 @@ const ContactList: React.FC = () => {
     return text.substring(0, maxLength) + "...";
   };
 
-  const handleViewDescription = (description: string) => {
-    setSelectedDescription(description);
-    setShowDescriptionDialog(true);
-  };
+  const columns: GridColDef[] = [
+    {
+      field: "name",
+      headerName: "Contact Info",
+      flex: 1,
+      minWidth: 200,
+      renderCell: (params) => (
+        <Box>
+          <Typography variant="subtitle2" fontWeight="bold">
+            {params.row.name}
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            {params.row.email}
+          </Typography>
+        </Box>
+      ),
+    },
+    {
+      field: "mobile",
+      headerName: "Mobile",
+      width: 150,
+      renderCell: (params) => (
+        <Typography variant="body2">{params.value}</Typography>
+      ),
+    },
+    {
+      field: "description",
+      headerName: "Description",
+      flex: 1,
+      minWidth: 200,
+      renderCell: (params) => (
+        <Box sx={{ maxWidth: 200 }}>
+          <Typography variant="body2" noWrap>
+            {truncateText(params.value, 50)}
+          </Typography>
+          {params.value.length > 50 && (
+            <Button
+              size="small"
+              startIcon={<VisibilityIcon />}
+              onClick={() => handleViewDescription(params.value)}
+              sx={{ mt: 0.5, minHeight: 'auto', py: 0.5 }}
+            >
+              View Full
+            </Button>
+          )}
+        </Box>
+      ),
+    },
+    {
+      field: "createdAt",
+      headerName: "Date",
+      width: 180,
+      renderCell: (params) => (
+        <Typography variant="body2" color="text.secondary">
+          {formatDate(params.value)}
+        </Typography>
+      ),
+    },
+    {
+      field: "actions",
+      type: "actions",
+      headerName: "Actions",
+      width: 100,
+      getActions: (params: GridRowParams<Contact>) => [
+        <GridActionsCellItem
+          key="view"
+          icon={
+            <Tooltip title="View Description">
+              <VisibilityIcon />
+            </Tooltip>
+          }
+          label="View Description"
+          onClick={() => handleViewDescription(params.row.description)}
+        />,
+        <GridActionsCellItem
+          key="delete"
+          icon={
+            <Tooltip title="Delete Contact">
+              <DeleteIcon />
+            </Tooltip>
+          }
+          label="Delete"
+          onClick={() => handleDelete(params.row)}
+        />,
+      ],
+    },
+  ];
 
-  if (loading) {
+  if (loading && contacts.length === 0) {
     return (
-      <Box
-        display="flex"
-        justifyContent="center"
-        alignItems="center"
-        minHeight="400px"
-      >
-        <CircularProgress />
+      <Box sx={{ height: 600, width: "100%" }}>
+        <DataGrid
+          rows={[]}
+          columns={columns}
+          loading={true}
+          slots={{
+            loadingOverlay: () => <TableSkeleton columns={4} />,
+          }}
+        />
       </Box>
     );
   }
@@ -138,121 +236,82 @@ const ContactList: React.FC = () => {
         }}
       >
         <Box>
-          <Typography variant="h4" component="h1" gutterBottom>
+          <Typography variant="h6" component="h1">
             Contact Messages
           </Typography>
-          <Typography variant="body2" color="text.secondary">
-            {totalContacts} total contact{totalContacts !== 1 ? "s" : ""}
-          </Typography>
+         
         </Box>
         <Button
           variant="contained"
           startIcon={<RefreshIcon />}
-          onClick={() => fetchContacts(currentPage)}
+          onClick={() => fetchContacts(pagination.page, pagination.pageSize)}
+          sx={{
+            borderRadius: "8px",
+            textTransform: "none",
+            fontWeight: 500,
+            px: 3,
+            py: 1,
+          }}
         >
           Refresh
         </Button>
       </Box>
 
-      {/* Contact List */}
-      {contacts.length === 0 ? (
-        <Paper sx={{ p: 4, textAlign: "center" }}>
-          <Typography variant="h6" color="text.secondary" gutterBottom>
-            No contacts found
-          </Typography>
-          <Typography variant="body2" color="text.secondary">
-            Contact messages will appear here when submitted.
-          </Typography>
-        </Paper>
-      ) : (
-        <TableContainer component={Paper}>
-          <Table>
-            <TableHead>
-              <TableRow>
-                <TableCell>Contact Info</TableCell>
-                <TableCell>Mobile</TableCell>
-                <TableCell>Description</TableCell>
-                <TableCell>Date</TableCell>
-                <TableCell align="center">Actions</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {contacts.map((contact) => (
-                <TableRow key={contact._id} hover>
-                  <TableCell>
-                    <Box>
-                      <Typography variant="subtitle2" fontWeight="bold">
-                        {contact.name}
-                      </Typography>
-                      <Typography variant="body2" color="text.secondary">
-                        {contact.email}
-                      </Typography>
-                    </Box>
-                  </TableCell>
-                  <TableCell>
-                    <Typography variant="body2">{contact.mobile}</Typography>
-                  </TableCell>
-                  <TableCell>
-                    <Box sx={{ maxWidth: 200 }}>
-                      <Typography variant="body2" noWrap>
-                        {truncateText(contact.description, 50)}
-                      </Typography>
-                      {contact.description.length > 50 && (
-                        <Button
-                          size="small"
-                          startIcon={<VisibilityIcon />}
-                          onClick={() =>
-                            handleViewDescription(contact.description)
-                          }
-                        >
-                          View Full
-                        </Button>
-                      )}
-                    </Box>
-                  </TableCell>
-                  <TableCell>
-                    <Typography variant="body2" color="text.secondary">
-                      {formatDate(contact.createdAt)}
-                    </Typography>
-                  </TableCell>
-                  <TableCell align="center">
-                    <Tooltip title="Delete Contact">
-                      <IconButton
-                        color="error"
-                        onClick={() => handleDelete(contact)}
-                        disabled={deleting === contact._id}
-                      >
-                        {deleting === contact._id ? (
-                          <CircularProgress size={20} />
-                        ) : (
-                          <DeleteIcon />
-                        )}
-                      </IconButton>
-                    </Tooltip>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </TableContainer>
+      {error && (
+        <Alert severity="error" sx={{ mb: 2 }}>
+          {error}
+        </Alert>
       )}
 
-      {/* Pagination */}
-      {totalPages > 1 && (
-        <Box sx={{ display: "flex", justifyContent: "center", mt: 3 }}>
-          <Pagination
-            count={totalPages}
-            page={currentPage}
-            onChange={handlePageChange}
-            color="primary"
-          />
-        </Box>
-      )}
+      <Box sx={{ height: 600, width: "100%" }}>
+        <DataGrid
+          rows={contacts}
+          columns={columns}
+          getRowId={(row) => row._id}
+          paginationModel={{
+            page: pagination.page - 1, // Convert to 0-based for DataGrid
+            pageSize: pagination.pageSize,
+          }}
+          onPaginationModelChange={handlePaginationChange}
+          pageSizeOptions={[5, 10, 25]}
+          rowCount={pagination.totalItems}
+          paginationMode="server"
+          loading={loading}
+          slots={{
+            loadingOverlay: () => <TableSkeleton columns={4} />,
+          }}
+          disableRowSelectionOnClick
+          sx={{
+            "& .MuiDataGrid-cell": {
+              border: "none",
+              "&:focus": {
+                outline: "none",
+              },
+              "&:focus-within": {
+                outline: "none",
+              },
+            },
+            "& .MuiDataGrid-columnHeaders": {
+              backgroundColor: "grey.50",
+              border: "none",
+            },
+            "& .MuiDataGrid-row": {
+              borderBottom: "1px solid #e0e0e0",
+            },
+            "& .MuiDataGrid-cell:focus": {
+              outline: "none",
+            },
+            "& .MuiDataGrid-cell:focus-within": {
+              outline: "none",
+            },
+          }}
+        />
+      </Box>
 
       {/* Description Dialog */}
       <Dialog
-        open={showDescriptionDialog}
-        onClose={() => setShowDescriptionDialog(false)}
+        open={descriptionDialogOpen}
+        onClose={() => setDescriptionDialogOpen(false)}
         maxWidth="md"
         fullWidth
       >
@@ -261,7 +320,7 @@ const ContactList: React.FC = () => {
           <DialogContentText>{selectedDescription}</DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setShowDescriptionDialog(false)}>Close</Button>
+          <Button onClick={() => setDescriptionDialogOpen(false)}>Close</Button>
         </DialogActions>
       </Dialog>
 
@@ -271,141 +330,23 @@ const ContactList: React.FC = () => {
         onClose={() => setDeleteDialogOpen(false)}
         maxWidth="sm"
         fullWidth
-        PaperProps={{
-          sx: {
-            borderRadius: 3,
-            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
-          },
-        }}
       >
-        <DialogTitle
-          sx={{
-            textAlign: 'center',
-            pb: 1,
-            pt: 3,
-            fontWeight: 600,
-            fontSize: '1.25rem',
-            color: 'error.main',
-          }}
-        >
-          🗑️ Delete Contact
-        </DialogTitle>
-        <DialogContent sx={{ px: 3, pb: 2 }}>
-          <Box sx={{ textAlign: 'center', mb: 3 }}>
-            <Typography
-              variant="body1"
-              sx={{
-                color: 'text.primary',
-                fontWeight: 500,
-                mb: 1,
-              }}
-            >
-              Are you sure you want to delete this contact?
-            </Typography>
-            <Typography
-              variant="body2"
-              sx={{
-                color: 'text.secondary',
-                fontStyle: 'italic',
-              }}
-            >
-              "{contactToDelete?.name}"
-            </Typography>
-          </Box>
-
-          <Box
-            sx={{
-              bgcolor: 'error.light',
-              borderRadius: 2,
-              p: 2,
-              mb: 3,
-              border: '1px solid',
-              borderColor: 'error.main',
-            }}
-          >
-            <Typography
-              variant="body2"
-              sx={{
-                color: 'error.contrastText',
-                fontWeight: 500,
-                textAlign: 'center',
-              }}
-            >
-              ⚠️ This action cannot be undone. The contact will be permanently removed.
-            </Typography>
-          </Box>
-
-          <Typography
-            variant="body2"
-            sx={{
-              mb: 2,
-              color: 'text.secondary',
-              textAlign: 'center',
-            }}
-          >
-            To confirm deletion, please type <strong style={{ color: 'error.main' }}>DELETE</strong> below:
-          </Typography>
-
-          <TextField
-            autoFocus
-            fullWidth
-            variant="outlined"
-            placeholder="Type DELETE to confirm"
-            value={deleteConfirmationText}
-            onChange={(e) => setDeleteConfirmationText(e.target.value)}
-            sx={{
-              '& .MuiOutlinedInput-root': {
-                borderRadius: 2,
-                bgcolor: 'grey.50',
-                '&:hover': {
-                  bgcolor: 'grey.100',
-                },
-                '&.Mui-focused': {
-                  bgcolor: 'background.paper',
-                },
-              },
-            }}
-            inputProps={{
-              style: { textAlign: 'center', fontWeight: 500 },
-            }}
-          />
-
-          {deleteConfirmationText && deleteConfirmationText !== 'DELETE' && (
-            <Typography
-              variant="caption"
-              sx={{
-                color: 'error.main',
-                textAlign: 'center',
-                mt: 1,
-                display: 'block',
-              }}
-            >
-              Please type "DELETE" exactly to confirm
-            </Typography>
-          )}
+        <DialogTitle>Delete Contact</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            Are you sure you want to delete the contact "{contactToDelete?.name}"?
+            This action cannot be undone.
+          </DialogContentText>
         </DialogContent>
-
-        <DialogActions
-          sx={{
-            px: 3,
-            pb: 3,
-            pt: 0,
-            justifyContent: 'center',
-            gap: 2,
-          }}
-        >
+        <DialogActions>
           <Button
             onClick={() => {
               setDeleteDialogOpen(false);
               setContactToDelete(null);
-              setDeleteConfirmationText('');
             }}
-            variant="outlined"
             sx={{
-              borderRadius: 2,
-              px: 3,
-              textTransform: 'none',
-              fontWeight: 500,
+              borderRadius: "8px",
+              textTransform: "none",
             }}
           >
             Cancel
@@ -414,24 +355,13 @@ const ContactList: React.FC = () => {
             onClick={confirmDelete}
             color="error"
             variant="contained"
-            disabled={deleteConfirmationText !== 'DELETE' || deleting === contactToDelete?._id}
             sx={{
-              borderRadius: 2,
-              px: 3,
-              textTransform: 'none',
+              borderRadius: "8px",
+              textTransform: "none",
               fontWeight: 500,
-              minWidth: 100,
-              '&:disabled': {
-                bgcolor: 'grey.300',
-                color: 'grey.500',
-              },
             }}
           >
-            {deleting === contactToDelete?._id ? (
-              <CircularProgress size={20} color="inherit" />
-            ) : (
-              'Delete Contact'
-            )}
+            Delete
           </Button>
         </DialogActions>
       </Dialog>

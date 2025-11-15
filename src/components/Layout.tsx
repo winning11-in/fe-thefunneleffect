@@ -64,12 +64,12 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       icon: FileText,
       current: location.pathname === "/pages",
     },
-    // {
-    //   name: "Tracks",
-    //   href: "/tracks",
-    //   icon: Music,
-    //   current: location.pathname === "/tracks",
-    // },
+    {
+      name: "Contacts",
+      href: "/contacts",
+      icon: Mail,
+      current: location.pathname === "/tracks",
+    },
     // {
     //   name: "Playlists",
     //   href: "/playlists",
@@ -176,36 +176,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
               {!isCollapsed && <ListItemText primary="Images" />}
             </ListItemButton>
           </ListItem>
-          <ListItem disablePadding sx={{ mb: 2 }}>
-            <ListItemButton
-              component={Link}
-              to="/contacts"
-              onClick={() => isMobile && setMobileOpen(false)}
-              sx={{
-                justifyContent: isCollapsed ? "center" : "flex-start",
-                px: 1,
-                backgroundColor:
-                  location.pathname === "/contacts" ? "#5a55d8" : "transparent",
-                "&:hover": {
-                  backgroundColor:
-                    location.pathname === "/contacts"
-                      ? "#5a55d8"
-                      : "rgba(255, 255, 255, 0.1)",
-                },
-              }}
-            >
-              <ListItemIcon
-                sx={{
-                  minWidth: "auto",
-                  mr: isCollapsed ? 0 : 2,
-                  color: "#fff",
-                }}
-              >
-                <Mail />
-              </ListItemIcon>
-              {!isCollapsed && <ListItemText primary="Contacts" />}
-            </ListItemButton>
-          </ListItem>
+        
           {/* <ListItem disablePadding sx={{ mb: 2 }}>
             <ListItemButton
               component={Link}
