@@ -121,7 +121,7 @@ const ContactList: React.FC = () => {
   }
 
   return (
-    <Box sx={{ p: 3 }}>
+    <Box  >
       {/* Header */}
       <Box
         sx={{
