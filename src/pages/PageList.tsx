@@ -21,6 +21,7 @@ import {
   DialogActions,
   Tooltip,
   Chip,
+  TextField,
 } from "@mui/material";
 import {
   Add as AddIcon,
@@ -44,6 +45,9 @@ const PageList: React.FC = () => {
   const [showDescriptionDialog, setShowDescriptionDialog] = useState(false);
   const [selectedImage, setSelectedImage] = useState<string>("");
   const [showImageDialog, setShowImageDialog] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [pageToDelete, setPageToDelete] = useState<Page | null>(null);
+  const [deleteConfirmationText, setDeleteConfirmationText] = useState("");
 
   const fetchPages = async (page = 1) => {
     try {
@@ -64,21 +68,23 @@ const PageList: React.FC = () => {
     fetchPages();
   }, []);
 
-  const handleDelete = async (id: string) => {
-    if (
-      !window.confirm(
-        "Are you sure you want to delete this page? This action cannot be undone."
-      )
-    ) {
-      return;
-    }
+  const handleDelete = (page: Page) => {
+    setPageToDelete(page);
+    setDeleteDialogOpen(true);
+    setDeleteConfirmationText("");
+  };
+
+  const confirmDelete = async () => {
+    if (!pageToDelete || deleteConfirmationText !== "DELETE") return;
 
     try {
-      setDeleting(id);
-      await pagesAPI.delete(id);
+      setDeleting(pageToDelete._id);
+      await pagesAPI.delete(pageToDelete._id);
       // Remove the deleted page from the list
-      setPages(pages.filter((page) => page._id !== id));
+      setPages(pages.filter((page) => page._id !== pageToDelete._id));
       setTotalPagesCount((prev) => prev - 1);
+      setDeleteDialogOpen(false);
+      setPageToDelete(null);
     } catch (error) {
       console.error("Failed to delete page:", error);
     } finally {
@@ -290,7 +296,7 @@ const PageList: React.FC = () => {
                     <Tooltip title="Delete Page">
                       <IconButton
                         color="error"
-                        onClick={() => handleDelete(page._id)}
+                        onClick={() => handleDelete(page)}
                         disabled={deleting === page._id}
                       >
                         {deleting === page._id ? (
@@ -349,6 +355,57 @@ const PageList: React.FC = () => {
             style={{ width: "100%", height: "auto" }}
           />
         </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog
+        open={deleteDialogOpen}
+        onClose={() => setDeleteDialogOpen(false)}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>Delete Page</DialogTitle>
+        <DialogContent>
+          <DialogContentText sx={{ mb: 2 }}>
+            Are you sure you want to delete the page "{pageToDelete?.title}"?
+            This action cannot be undone.
+          </DialogContentText>
+          <DialogContentText sx={{ mb: 1 }}>
+            To confirm deletion, please type <strong>DELETE</strong> in the field below:
+          </DialogContentText>
+          <TextField
+            autoFocus
+            fullWidth
+            variant="outlined"
+            placeholder="Type DELETE to confirm"
+            value={deleteConfirmationText}
+            onChange={(e) => setDeleteConfirmationText(e.target.value)}
+            sx={{ mt: 1 }}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button
+            onClick={() => {
+              setDeleteDialogOpen(false);
+              setPageToDelete(null);
+              setDeleteConfirmationText("");
+            }}
+          >
+            Cancel
+          </Button>
+          <Button
+            onClick={confirmDelete}
+            color="error"
+            variant="contained"
+            disabled={deleteConfirmationText !== "DELETE" || deleting === pageToDelete?._id}
+          >
+            {deleting === pageToDelete?._id ? (
+              <CircularProgress size={20} />
+            ) : (
+              "Delete"
+            )}
+          </Button>
+        </DialogActions>
       </Dialog>
     </Box>
   );

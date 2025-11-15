@@ -19,6 +19,7 @@ import {
   DialogContentText,
   DialogActions,
   Tooltip,
+  TextField,
 } from "@mui/material";
 import {
   Delete as DeleteIcon,
@@ -37,6 +38,9 @@ const ContactList: React.FC = () => {
   const [totalContacts, setTotalContacts] = useState(0);
   const [selectedDescription, setSelectedDescription] = useState<string>("");
   const [showDescriptionDialog, setShowDescriptionDialog] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [contactToDelete, setContactToDelete] = useState<Contact | null>(null);
+  const [deleteConfirmationText, setDeleteConfirmationText] = useState("");
 
   const fetchContacts = async (page = 1) => {
     try {
@@ -57,21 +61,23 @@ const ContactList: React.FC = () => {
     fetchContacts();
   }, []);
 
-  const handleDelete = async (id: string) => {
-    if (
-      !window.confirm(
-        "Are you sure you want to delete this contact? This action cannot be undone."
-      )
-    ) {
-      return;
-    }
+  const handleDelete = (contact: Contact) => {
+    setContactToDelete(contact);
+    setDeleteDialogOpen(true);
+    setDeleteConfirmationText("");
+  };
+
+  const confirmDelete = async () => {
+    if (!contactToDelete || deleteConfirmationText !== "DELETE") return;
 
     try {
-      setDeleting(id);
-      await deleteContact(id);
+      setDeleting(contactToDelete._id);
+      await deleteContact(contactToDelete._id);
       // Remove the deleted contact from the list
-      setContacts(contacts.filter((contact) => contact._id !== id));
+      setContacts(contacts.filter((contact) => contact._id !== contactToDelete._id));
       setTotalContacts((prev) => prev - 1);
+      setDeleteDialogOpen(false);
+      setContactToDelete(null);
     } catch (error) {
       console.error("Failed to delete contact:", error);
     } finally {
@@ -213,7 +219,7 @@ const ContactList: React.FC = () => {
                     <Tooltip title="Delete Contact">
                       <IconButton
                         color="error"
-                        onClick={() => handleDelete(contact._id)}
+                        onClick={() => handleDelete(contact)}
                         disabled={deleting === contact._id}
                       >
                         {deleting === contact._id ? (
@@ -256,6 +262,57 @@ const ContactList: React.FC = () => {
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setShowDescriptionDialog(false)}>Close</Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog
+        open={deleteDialogOpen}
+        onClose={() => setDeleteDialogOpen(false)}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>Delete Contact</DialogTitle>
+        <DialogContent>
+          <DialogContentText sx={{ mb: 2 }}>
+            Are you sure you want to delete the contact "{contactToDelete?.name}"?
+            This action cannot be undone.
+          </DialogContentText>
+          <DialogContentText sx={{ mb: 1 }}>
+            To confirm deletion, please type <strong>DELETE</strong> in the field below:
+          </DialogContentText>
+          <TextField
+            autoFocus
+            fullWidth
+            variant="outlined"
+            placeholder="Type DELETE to confirm"
+            value={deleteConfirmationText}
+            onChange={(e) => setDeleteConfirmationText(e.target.value)}
+            sx={{ mt: 1 }}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button
+            onClick={() => {
+              setDeleteDialogOpen(false);
+              setContactToDelete(null);
+              setDeleteConfirmationText("");
+            }}
+          >
+            Cancel
+          </Button>
+          <Button
+            onClick={confirmDelete}
+            color="error"
+            variant="contained"
+            disabled={deleteConfirmationText !== "DELETE" || deleting === contactToDelete?._id}
+          >
+            {deleting === contactToDelete?._id ? (
+              <CircularProgress size={20} />
+            ) : (
+              "Delete"
+            )}
+          </Button>
         </DialogActions>
       </Dialog>
     </Box>
