@@ -1,146 +1,284 @@
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Box,
   Typography,
   Button,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  Paper,
-  IconButton,
-  Pagination,
-  CircularProgress,
+  Alert,
   Dialog,
   DialogTitle,
   DialogContent,
   DialogContentText,
   DialogActions,
-  Tooltip,
-  Chip,
   TextField,
+  InputAdornment,
+  Chip,
+  Tooltip,
+  FormControl,
+  Select,
+  MenuItem,
+  SelectChangeEvent,
 } from "@mui/material";
 import {
-  Add as AddIcon,
+  DataGrid,
+  GridColDef,
+  GridActionsCellItem,
+  GridRowParams,
+} from "@mui/x-data-grid";
+import {
+  Plus as AddIcon,
   Edit as EditIcon,
-  Delete as DeleteIcon,
-  Refresh as RefreshIcon,
-  Visibility as VisibilityIcon,
-} from "@mui/icons-material";
-import { pagesAPI } from "../services/api";
-import type { Page, PaginatedResponse } from "../types";
+  Trash2 as DeleteIcon,
+  Search as SearchIcon,
+  Eye as VisibilityIcon,
+} from "lucide-react";
+import { useAppDispatch, useAppSelector } from "../store/hooks";
+import {
+  fetchPages,
+  deletePage,
+  setPagination,
+} from "../store/slices/pagesSlice";
+import type { Page } from "../types";
+import TableSkeleton from "../components/TableSkeleton";
 
 const PageList: React.FC = () => {
   const navigate = useNavigate();
-  const [pages, setPages] = useState<Page[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [deleting, setDeleting] = useState<string | null>(null);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const [totalPagesCount, setTotalPagesCount] = useState(0);
-  const [selectedDescription, setSelectedDescription] = useState<string>("");
-  const [showDescriptionDialog, setShowDescriptionDialog] = useState(false);
-  const [selectedImage, setSelectedImage] = useState<string>("");
-  const [showImageDialog, setShowImageDialog] = useState(false);
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [pageToDelete, setPageToDelete] = useState<Page | null>(null);
-  const [deleteConfirmationText, setDeleteConfirmationText] = useState("");
+  const dispatch = useAppDispatch();
+  const {
+    items: pages,
+    loading,
+    error,
+    pagination,
+    lastFetched,
+  } = useAppSelector((state) => state.pages);
 
-  const fetchPages = async (page = 1) => {
-    try {
-      setLoading(true);
-      const response: PaginatedResponse<Page> = await pagesAPI.getAll({ page, limit: 10 });
-      setPages(response.data.pages);
-      setCurrentPage(response.data.pagination.currentPage);
-      setTotalPages(response.data.pagination.totalPages);
-      setTotalPagesCount(response.data.pagination.totalItems);
-    } catch (error) {
-      console.error("Failed to fetch pages:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false);
+  const [pageToDelete, setPageToDelete] = React.useState<Page | null>(null);
+  const [titleFilter, setTitleFilter] = React.useState("");
+  const [selectedGroups, setSelectedGroups] = React.useState<string[]>([]);
+
+  const [imageDialogOpen, setImageDialogOpen] = React.useState(false);
+  const [selectedImage, setSelectedImage] = React.useState<string>("");
+
+  // Get unique groups for filter dropdown
+  const availableGroups = useMemo(() => {
+    const groups = new Set<string>();
+    pages.forEach((page) => page.groups.forEach((group) => groups.add(group)));
+    return Array.from(groups).sort();
+  }, [pages]);
+
+  // Client-side filtering
+  const filteredPages = useMemo(() => {
+    return pages.filter((page) => {
+      const matchesTitle =
+        titleFilter === "" ||
+        page.title.toLowerCase().includes(titleFilter.toLowerCase());
+      const matchesGroups =
+        selectedGroups.length === 0 ||
+        selectedGroups.some((group) => page.groups.includes(group));
+      return matchesTitle && matchesGroups;
+    });
+  }, [pages, titleFilter, selectedGroups]);
 
   useEffect(() => {
-    fetchPages();
-  }, []);
+    // Only fetch if we haven't fetched recently or if pagination changed
+    const CACHE_DURATION = 2 * 60 * 1000; // 2 minutes for pages list
+    const shouldFetch =
+      !lastFetched || Date.now() - lastFetched > CACHE_DURATION;
+
+    if (shouldFetch || pagination.page !== 1 || pagination.pageSize !== 10) {
+      dispatch(
+        fetchPages({
+          page: pagination.page,
+          pageSize: pagination.pageSize,
+        })
+      );
+    }
+  }, [dispatch, pagination.page, pagination.pageSize, lastFetched]);
+
+  const handleEdit = (id: string) => {
+    navigate(`/pages/edit/${id}`);
+  };
 
   const handleDelete = (page: Page) => {
     setPageToDelete(page);
     setDeleteDialogOpen(true);
-    setDeleteConfirmationText("");
   };
 
   const confirmDelete = async () => {
-    if (!pageToDelete || deleteConfirmationText !== "DELETE") return;
+    if (!pageToDelete) return;
 
     try {
-      setDeleting(pageToDelete._id);
-      await pagesAPI.delete(pageToDelete._id);
-      // Remove the deleted page from the list
-      setPages(pages.filter((page) => page._id !== pageToDelete._id));
-      setTotalPagesCount((prev) => prev - 1);
+      await dispatch(deletePage(pageToDelete._id));
       setDeleteDialogOpen(false);
       setPageToDelete(null);
     } catch (error) {
-      console.error("Failed to delete page:", error);
-    } finally {
-      setDeleting(null);
+      console.error("Error deleting page:", error);
     }
   };
 
-  const handlePageChange = (
-    event: React.ChangeEvent<unknown>,
-    page: number
+  const handleTitleFilterChange = (
+    event: React.ChangeEvent<HTMLInputElement>
   ) => {
-    fetchPages(page);
-    console.log("event", event);
+    setTitleFilter(event.target.value);
   };
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
+  const handleGroupsFilterChange = (event: SelectChangeEvent<string[]>) => {
+    const value = event.target.value as string[];
+    setSelectedGroups(value);
   };
 
-  const truncateText = (text: string, maxLength: number) => {
-    if (text.length <= maxLength) return text;
-    return text.substring(0, maxLength) + "...";
-  };
-
-  const handleViewDescription = (description: string) => {
-    setSelectedDescription(description);
-    setShowDescriptionDialog(true);
-  };
-
-  const handleViewImage = (imageUrl: string) => {
-    setSelectedImage(imageUrl);
-    setShowImageDialog(true);
-  };
-
-  if (loading) {
-    return (
-      <Box
-        display="flex"
-        justifyContent="center"
-        alignItems="center"
-        minHeight="400px"
-      >
-        <CircularProgress />
-      </Box>
+  const handlePaginationChange = (newPaginationModel: {
+    page: number;
+    pageSize: number;
+  }) => {
+    dispatch(
+      setPagination({
+        page: newPaginationModel.page + 1, // Convert to 1-based
+        pageSize: newPaginationModel.pageSize,
+      })
     );
-  }
+  };
+
+  const handlePreview = (page: Page) => {
+    // Navigate to preview page
+    navigate(`/pages/preview/${page.slug}`);
+  };
+
+  const columns: GridColDef[] = [
+    {
+      field: "title",
+      headerName: "Title",
+      flex: 1,
+      minWidth: 120,
+    },
+    {
+      field: "slug",
+      headerName: "Slug",
+      flex: 1,
+      minWidth: 120,
+      renderCell: (params) => (
+        <Typography
+          variant="body2"
+          sx={{
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+          }}
+        >
+          {params.value}
+        </Typography>
+      ),
+    },
+    {
+      field: "imageUrl",
+      headerName: "Image",
+      width: 100,
+      renderCell: (params) => (
+        <Box sx={{ position: "relative", display: "inline-block" }}>
+          <img
+            src={params.value}
+            alt="Page Image"
+            style={{ width: 50, height: 50, objectFit: "cover" }}
+          />
+          <Box
+            sx={{
+              position: "absolute",
+              top: 0,
+              left: 0,
+              width: "100%",
+              height: "100%",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              backgroundColor: "rgba(0,0,0,0.5)",
+              opacity: 0,
+              transition: "opacity 0.3s",
+              "&:hover": { opacity: 1 },
+              cursor: "pointer",
+            }}
+            onClick={() => {
+              setSelectedImage(params.value);
+              setImageDialogOpen(true);
+            }}
+          >
+            <VisibilityIcon size={20} color="white" />
+          </Box>
+        </Box>
+      ),
+    },
+
+    {
+      field: "groups",
+      headerName: "Groups",
+      width: 200,
+      renderCell: (params) => (
+        <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5 }}>
+          {params.value.slice(0, 2).map((group: string, index: number) => (
+            <Chip key={index} label={group} size="small" />
+          ))}
+          {params.value.length > 2 && (
+            <Chip
+              label={`+${params.value.length - 2}`}
+              size="small"
+              variant="outlined"
+            />
+          )}
+        </Box>
+      ),
+    },
+    {
+      field: "createdAt",
+      headerName: "Created",
+      width: 120,
+      renderCell: (params) => (
+        <Typography variant="body2">
+          {new Date(params.value).toLocaleDateString()}
+        </Typography>
+      ),
+    },
+    {
+      field: "actions",
+      type: "actions",
+      headerName: "Actions",
+      width: 120,
+      getActions: (params: GridRowParams<Page>) => [
+        <GridActionsCellItem
+          key="preview"
+          icon={
+            <Tooltip title="Preview">
+              <VisibilityIcon size={20} />
+            </Tooltip>
+          }
+          label="Preview"
+          onClick={() => handlePreview(params.row)}
+        />,
+        <GridActionsCellItem
+          key="edit"
+          icon={
+            <Tooltip title="Edit">
+              <EditIcon size={18} />
+            </Tooltip>
+          }
+          label="Edit"
+          onClick={() => handleEdit(params.row._id)}
+        />,
+        <GridActionsCellItem
+          key="delete"
+          icon={
+            <Tooltip title="Delete">
+              <DeleteIcon size={18} />
+            </Tooltip>
+          }
+          label="Delete"
+          onClick={() => handleDelete(params.row)}
+        />,
+      ],
+    },
+  ];
 
   return (
-    <Box sx={{ p: 3 }}>
-      {/* Header */}
+    <Box>
       <Box
         sx={{
           display: "flex",
@@ -149,203 +287,165 @@ const PageList: React.FC = () => {
           mb: 3,
         }}
       >
-        <Box>
-          <Typography variant="h4" component="h1" gutterBottom>
-            Pages
-          </Typography>
-          <Typography variant="body2" color="text.secondary">
-            {totalPagesCount} total page{totalPagesCount !== 1 ? "s" : ""}
-          </Typography>
-        </Box>
-        <Box>
-          <Button
-            variant="contained"
-            startIcon={<RefreshIcon />}
-            onClick={() => fetchPages(currentPage)}
-            sx={{ mr: 2 }}
-          >
-            Refresh
-          </Button>
-          <Button
-            variant="contained"
-            startIcon={<AddIcon />}
-            onClick={() => navigate("/pages/new")}
-          >
-            Create New Page
-          </Button>
-        </Box>
+        <Typography variant="h6" component="h1">
+          Pages
+        </Typography>
+        <Button
+          variant="contained"
+          startIcon={<AddIcon size={20} />}
+          onClick={() => navigate("/pages/new")}
+          sx={{
+            borderRadius: "8px",
+            textTransform: "none",
+            fontWeight: 500,
+            px: 3,
+            py: 1,
+          }}
+        >
+          Create New Page
+        </Button>
       </Box>
 
-      {/* Pages List */}
-      {pages.length === 0 ? (
-        <Paper sx={{ p: 4, textAlign: "center" }}>
-          <Typography variant="h6" color="text.secondary" gutterBottom>
-            No pages found
-          </Typography>
-          <Typography variant="body2" color="text.secondary">
-            Pages will appear here when created.
-          </Typography>
-        </Paper>
-      ) : (
-        <TableContainer component={Paper}>
-          <Table>
-            <TableHead>
-              <TableRow>
-                <TableCell>Title & Description</TableCell>
-                <TableCell>Slug</TableCell>
-                <TableCell>Image</TableCell>
-                <TableCell>Groups</TableCell>
-                <TableCell>Date</TableCell>
-                <TableCell align="center">Actions</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {pages.map((page) => (
-                <TableRow key={page._id} hover>
-                  <TableCell>
-                    <Box>
-                      <Typography variant="subtitle2" fontWeight="bold">
-                        {page.title}
-                      </Typography>
-                      <Typography variant="body2" color="text.secondary">
-                        {truncateText(page.description, 50)}
-                      </Typography>
-                      {page.description.length > 50 && (
-                        <Button
-                          size="small"
-                          startIcon={<VisibilityIcon />}
-                          onClick={() =>
-                            handleViewDescription(page.description)
-                          }
-                        >
-                          View Full
-                        </Button>
-                      )}
-                    </Box>
-                  </TableCell>
-                  <TableCell>
-                    <Typography variant="body2">{page.slug}</Typography>
-                  </TableCell>
-                  <TableCell>
-                    {page.imageUrl && (
-                      <Box sx={{ position: "relative", display: "inline-block" }}>
-                        <img
-                          src={page.imageUrl}
-                          alt="Page Image"
-                          style={{ width: 50, height: 50, objectFit: "cover" }}
-                        />
-                        <Box
-                          sx={{
-                            position: "absolute",
-                            top: 0,
-                            left: 0,
-                            width: "100%",
-                            height: "100%",
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            backgroundColor: "rgba(0,0,0,0.5)",
-                            opacity: 0,
-                            transition: "opacity 0.3s",
-                            "&:hover": { opacity: 1 },
-                            cursor: "pointer",
-                          }}
-                          onClick={() => handleViewImage(page.imageUrl)}
-                        >
-                          <VisibilityIcon sx={{ color: "white", fontSize: 20 }} />
-                        </Box>
-                      </Box>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5 }}>
-                      {page.groups.slice(0, 2).map((group, index) => (
-                        <Chip key={index} label={group} size="small" />
-                      ))}
-                      {page.groups.length > 2 && (
-                        <Chip
-                          label={`+${page.groups.length - 2}`}
-                          size="small"
-                          variant="outlined"
-                        />
-                      )}
-                    </Box>
-                  </TableCell>
-                  <TableCell>
-                    <Typography variant="body2" color="text.secondary">
-                      {formatDate(page.createdAt)}
-                    </Typography>
-                  </TableCell>
-                  <TableCell align="center">
-                    <Tooltip title="Preview">
-                      <IconButton
-                        color="primary"
-                        onClick={() => navigate(`/pages/preview/${page.slug}`)}
-                      >
-                        <VisibilityIcon />
-                      </IconButton>
-                    </Tooltip>
-                    <Tooltip title="Edit">
-                      <IconButton
-                        color="primary"
-                        onClick={() => navigate(`/pages/edit/${page._id}`)}
-                      >
-                        <EditIcon />
-                      </IconButton>
-                    </Tooltip>
-                    <Tooltip title="Delete Page">
-                      <IconButton
-                        color="error"
-                        onClick={() => handleDelete(page)}
-                        disabled={deleting === page._id}
-                      >
-                        {deleting === page._id ? (
-                          <CircularProgress size={20} />
-                        ) : (
-                          <DeleteIcon />
-                        )}
-                      </IconButton>
-                    </Tooltip>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </TableContainer>
+      <Box sx={{ display: "flex", gap: 2, mb: 2, alignItems: "center" }}>
+        <TextField
+          placeholder="Search by title..."
+          value={titleFilter}
+          onChange={handleTitleFilterChange}
+          InputProps={{
+            startAdornment: (
+              <InputAdornment position="start">
+                <SearchIcon size={20} />
+              </InputAdornment>
+            ),
+          }}
+          sx={{
+            minWidth: 300,
+            "& .MuiOutlinedInput-root": {
+              borderRadius: "8px",
+            },
+          }}
+          size="small"
+        />
+
+        <FormControl sx={{ minWidth: 200 }}>
+          <Select
+            multiple
+            value={selectedGroups}
+            onChange={handleGroupsFilterChange}
+            renderValue={(selected) => (
+              <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5 }}>
+                {(selected as string[]).map((value) => (
+                  <Chip key={value} label={value} size="small" />
+                ))}
+              </Box>
+            )}
+            sx={{
+              "& .MuiOutlinedInput-root": {
+                borderRadius: "8px",
+              },
+            }}
+            size="small"
+          >
+            {availableGroups.map((group) => (
+              <MenuItem key={group} value={group}>
+                {group}
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+      </Box>
+
+      {error && (
+        <Alert severity="error" sx={{ mb: 2 }}>
+          {error}
+        </Alert>
       )}
 
-      {/* Pagination */}
-      {totalPages > 1 && (
-        <Box sx={{ display: "flex", justifyContent: "center", mt: 3 }}>
-          <Pagination
-            count={totalPages}
-            page={currentPage}
-            onChange={handlePageChange}
-            color="primary"
-          />
-        </Box>
-      )}
+      <Box sx={{ height: 600, width: "100%" }}>
+        <DataGrid
+          rows={loading ? [] : filteredPages}
+          columns={columns}
+          getRowId={(row) => row._id}
+          paginationModel={{
+            page: pagination.page - 1, // Convert to 0-based for DataGrid
+            pageSize: pagination.pageSize,
+          }}
+          onPaginationModelChange={handlePaginationChange}
+          pageSizeOptions={[5, 10, 25]}
+          rowCount={pagination.totalItems}
+          paginationMode="server"
+          loading={loading}
+          slots={{
+            loadingOverlay: () => <TableSkeleton columns={6} />,
+          }}
+          disableRowSelectionOnClick
+          sx={{
+            "& .MuiDataGrid-cell": {
+              border: "none",
+              "&:focus": {
+                outline: "none",
+              },
+              "&:focus-within": {
+                outline: "none",
+              },
+            },
+            "& .MuiDataGrid-columnHeaders": {
+              backgroundColor: "grey.50",
+              border: "none",
+            },
+            "& .MuiDataGrid-row": {
+              borderBottom: "1px solid #e0e0e0",
+            },
+            "& .MuiDataGrid-cell:focus": {
+              outline: "none",
+            },
+            "& .MuiDataGrid-cell:focus-within": {
+              outline: "none",
+            },
+          }}
+        />
+      </Box>
 
-      {/* Description Dialog */}
+      {/* Delete Confirmation Dialog */}
       <Dialog
-        open={showDescriptionDialog}
-        onClose={() => setShowDescriptionDialog(false)}
-        maxWidth="md"
-        fullWidth
+        open={deleteDialogOpen}
+        onClose={() => setDeleteDialogOpen(false)}
       >
-        <DialogTitle>Page Description</DialogTitle>
+        <DialogTitle>Delete Page</DialogTitle>
         <DialogContent>
-          <DialogContentText>{selectedDescription}</DialogContentText>
+          <DialogContentText>
+            Are you sure you want to delete the page "{pageToDelete?.title}"?
+            This action cannot be undone.
+          </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setShowDescriptionDialog(false)}>Close</Button>
+          <Button
+            onClick={() => setDeleteDialogOpen(false)}
+            sx={{
+              borderRadius: "8px",
+              textTransform: "none",
+            }}
+          >
+            Cancel
+          </Button>
+          <Button
+            onClick={confirmDelete}
+            color="error"
+            variant="contained"
+            sx={{
+              borderRadius: "8px",
+              textTransform: "none",
+              fontWeight: 500,
+            }}
+          >
+            Delete
+          </Button>
         </DialogActions>
       </Dialog>
-
-      {/* Image Dialog */}
+      {/* Image Preview Dialog */}
       <Dialog
-        open={showImageDialog}
-        onClose={() => setShowImageDialog(false)}
+        open={imageDialogOpen}
+        onClose={() => setImageDialogOpen(false)}
         maxWidth="md"
       >
         <DialogContent>
@@ -355,177 +455,6 @@ const PageList: React.FC = () => {
             style={{ width: "100%", height: "auto" }}
           />
         </DialogContent>
-      </Dialog>
-
-      {/* Delete Confirmation Dialog */}
-      <Dialog
-        open={deleteDialogOpen}
-        onClose={() => setDeleteDialogOpen(false)}
-        maxWidth="sm"
-        fullWidth
-        PaperProps={{
-          sx: {
-            borderRadius: 3,
-            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
-          },
-        }}
-      >
-        <DialogTitle
-          sx={{
-            textAlign: 'center',
-            pb: 1,
-            pt: 3,
-            fontWeight: 600,
-            fontSize: '1.25rem',
-            color: 'error.main',
-          }}
-        >
-          🗑️ Delete Page
-        </DialogTitle>
-        <DialogContent sx={{ px: 3, pb: 2 }}>
-          <Box sx={{ textAlign: 'center', mb: 3 }}>
-            <Typography
-              variant="body1"
-              sx={{
-                color: 'text.primary',
-                fontWeight: 500,
-                mb: 1,
-              }}
-            >
-              Are you sure you want to delete this page?
-            </Typography>
-            <Typography
-              variant="body2"
-              sx={{
-                color: 'text.secondary',
-                fontStyle: 'italic',
-              }}
-            >
-              "{pageToDelete?.title}"
-            </Typography>
-          </Box>
-
-          <Box
-            sx={{
-              bgcolor: 'error.light',
-              borderRadius: 2,
-              p: 2,
-              mb: 3,
-              border: '1px solid',
-              borderColor: 'error.main',
-            }}
-          >
-            <Typography
-              variant="body2"
-              sx={{
-                color: 'error.contrastText',
-                fontWeight: 500,
-                textAlign: 'center',
-              }}
-            >
-              ⚠️ This action cannot be undone. The page will be permanently removed.
-            </Typography>
-          </Box>
-
-          <Typography
-            variant="body2"
-            sx={{
-              mb: 2,
-              color: 'text.secondary',
-              textAlign: 'center',
-            }}
-          >
-            To confirm deletion, please type <strong style={{ color: 'error.main' }}>DELETE</strong> below:
-          </Typography>
-
-          <TextField
-            autoFocus
-            fullWidth
-            variant="outlined"
-            placeholder="Type DELETE to confirm"
-            value={deleteConfirmationText}
-            onChange={(e) => setDeleteConfirmationText(e.target.value)}
-            sx={{
-              '& .MuiOutlinedInput-root': {
-                borderRadius: 2,
-                bgcolor: 'grey.50',
-                '&:hover': {
-                  bgcolor: 'grey.100',
-                },
-                '&.Mui-focused': {
-                  bgcolor: 'background.paper',
-                },
-              },
-            }}
-            inputProps={{
-              style: { textAlign: 'center', fontWeight: 500 },
-            }}
-          />
-
-          {deleteConfirmationText && deleteConfirmationText !== 'DELETE' && (
-            <Typography
-              variant="caption"
-              sx={{
-                color: 'error.main',
-                textAlign: 'center',
-                mt: 1,
-                display: 'block',
-              }}
-            >
-              Please type "DELETE" exactly to confirm
-            </Typography>
-          )}
-        </DialogContent>
-
-        <DialogActions
-          sx={{
-            px: 3,
-            pb: 3,
-            pt: 0,
-            justifyContent: 'center',
-            gap: 2,
-          }}
-        >
-          <Button
-            onClick={() => {
-              setDeleteDialogOpen(false);
-              setPageToDelete(null);
-              setDeleteConfirmationText('');
-            }}
-            variant="outlined"
-            sx={{
-              borderRadius: 2,
-              px: 3,
-              textTransform: 'none',
-              fontWeight: 500,
-            }}
-          >
-            Cancel
-          </Button>
-          <Button
-            onClick={confirmDelete}
-            color="error"
-            variant="contained"
-            disabled={deleteConfirmationText !== 'DELETE' || deleting === pageToDelete?._id}
-            sx={{
-              borderRadius: 2,
-              px: 3,
-              textTransform: 'none',
-              fontWeight: 500,
-              minWidth: 100,
-              '&:disabled': {
-                bgcolor: 'grey.300',
-                color: 'grey.500',
-              },
-            }}
-          >
-            {deleting === pageToDelete?._id ? (
-              <CircularProgress size={20} color="inherit" />
-            ) : (
-              'Delete Page'
-            )}
-          </Button>
-        </DialogActions>
       </Dialog>
     </Box>
   );
