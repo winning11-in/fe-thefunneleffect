@@ -58,7 +58,6 @@ const PageList: React.FC = () => {
     loading,
     error,
     pagination,
-    groupFilter,
   } = useAppSelector((state) => state.pages);
 
   const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false);
