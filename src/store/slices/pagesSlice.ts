@@ -13,6 +13,7 @@ interface PagesState {
     totalPages: number
   }
   searchTerm: string
+  groupFilter: string
   lastFetched: number | null // timestamp for caching
 }
 
@@ -27,18 +28,24 @@ const initialState: PagesState = {
     totalPages: 0,
   },
   searchTerm: '',
+  groupFilter: '',
   lastFetched: null,
 }
 
 // Async thunks
 export const fetchPages = createAsyncThunk(
   'pages/fetchPages',
-  async ({ page = 1, pageSize = 10, search = '' }: { page?: number; pageSize?: number; search?: string }) => {
-    const response = await pagesAPI.getAll({ page, limit: pageSize, search: search || undefined })
+  async ({ page = 1, pageSize = 10, search = '', group = '' }: { page?: number; pageSize?: number; search?: string; group?: string }) => {
+    const params: any = { page, limit: pageSize }
+    if (search) params.search = search
+    if (group) params.group = group
+    
+    const response = await pagesAPI.getAll(params)
     return {
       pages: response.data.pages,
       pagination: response.data.pagination,
       searchTerm: search,
+      groupFilter: group,
     }
   }
 )
@@ -75,6 +82,10 @@ const pagesSlice = createSlice({
       state.searchTerm = action.payload
       state.pagination.page = 1 // Reset to first page when searching
     },
+    setGroupFilter: (state, action: PayloadAction<string>) => {
+      state.groupFilter = action.payload
+      state.pagination.page = 1 // Reset to first page when filtering
+    },
     setPagination: (state, action: PayloadAction<{ page: number; pageSize: number }>) => {
       state.pagination.page = action.payload.page
       state.pagination.pageSize = action.payload.pageSize
@@ -101,6 +112,7 @@ const pagesSlice = createSlice({
           totalPages: action.payload.pagination.totalPages,
         }
         state.searchTerm = action.payload.searchTerm
+        state.groupFilter = action.payload.groupFilter
         state.lastFetched = Date.now()
       })
       .addCase(fetchPages.rejected, (state, action) => {
@@ -122,5 +134,5 @@ const pagesSlice = createSlice({
   },
 })
 
-export const { setSearchTerm, setPagination, clearPages } = pagesSlice.actions
+export const { setSearchTerm, setGroupFilter, setPagination, clearPages } = pagesSlice.actions
 export default pagesSlice.reducer

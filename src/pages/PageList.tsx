@@ -14,6 +14,10 @@ import {
   InputAdornment,
   Chip,
   Tooltip,
+  FormControl,
+  Select,
+  MenuItem,
+  InputLabel,
 } from "@mui/material";
 import {
   DataGrid,
@@ -33,9 +37,18 @@ import {
   fetchPages,
   deletePage,
   setPagination,
+  setGroupFilter,
 } from "../store/slices/pagesSlice";
 import type { Page } from "../types";
 import TableSkeleton from "../components/TableSkeleton";
+
+// Group options for filtering
+const GROUP_OPTIONS = [
+  { value: "", label: "All Groups" },
+  { value: "blogs", label: "Blogs" },
+  { value: "cardiology", label: "Cardiology" },
+  { value: "case-studies", label: "Case Studies" },
+];
 
 const PageList: React.FC = () => {
   const navigate = useNavigate();
@@ -45,6 +58,7 @@ const PageList: React.FC = () => {
     loading,
     error,
     pagination,
+    groupFilter,
   } = useAppSelector((state) => state.pages);
 
   const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false);
@@ -52,20 +66,22 @@ const PageList: React.FC = () => {
   const [searchTerm, setSearchTerm] = React.useState("");
   const [searchInput, setSearchInput] = React.useState(""); // Local input state
   const [searchTimeout, setSearchTimeout] = React.useState<NodeJS.Timeout | null>(null);
+  const [selectedGroupFilter, setSelectedGroupFilter] = React.useState(""); // Local group filter state
 
   const [imageDialogOpen, setImageDialogOpen] = React.useState(false);
   const [selectedImage, setSelectedImage] = React.useState<string>("");
 
   useEffect(() => {
-    // Fetch pages when pagination changes or search term changes
+    // Fetch pages when pagination changes, search term changes, or group filter changes
     dispatch(
       fetchPages({
         page: pagination.page,
         pageSize: pagination.pageSize,
         search: searchTerm,
+        group: selectedGroupFilter,
       })
     );
-  }, [dispatch, pagination.page, pagination.pageSize, searchTerm]);
+  }, [dispatch, pagination.page, pagination.pageSize, searchTerm, selectedGroupFilter]);
 
   const handleEdit = (id: string) => {
     navigate(`/pages/edit/${id}`);
@@ -121,6 +137,19 @@ const PageList: React.FC = () => {
     }, 500);
     
     setSearchTimeout(timeout);
+  };
+
+  const handleGroupFilterChange = (event: any) => {
+    const value = event.target.value;
+    setSelectedGroupFilter(value);
+    dispatch(setGroupFilter(value));
+    // Reset to first page when filtering
+    dispatch(
+      setPagination({
+        page: 1,
+        pageSize: pagination.pageSize,
+      })
+    );
   };
 
   // Cleanup timeout on unmount
@@ -221,7 +250,7 @@ const PageList: React.FC = () => {
     {
       field: "groups",
       headerName: "Groups",
-      width: 200,
+      width: 150,
       renderCell: (params) => (
         <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5 }}>
           {params.value.slice(0, 2).map((group: string, index: number) => (
@@ -232,6 +261,59 @@ const PageList: React.FC = () => {
               label={`+${params.value.length - 2}`}
               size="small"
               variant="outlined"
+            />
+          )}
+        </Box>
+      ),
+    },
+    {
+      field: "popular",
+      headerName: "Popular",
+      width: 80,
+      renderCell: (params) => (
+        <Chip
+          label={params.value ? "Yes" : "No"}
+          color={params.value ? "primary" : "default"}
+          size="small"
+          variant={params.value ? "filled" : "outlined"}
+        />
+      ),
+    },
+    {
+      field: "category",
+      headerName: "Category",
+      width: 120,
+      renderCell: (params) => (
+        <Typography variant="body2">
+          {params.value || "-"}
+        </Typography>
+      ),
+    },
+    {
+      field: "readTime",
+      headerName: "Read Time",
+      width: 100,
+      renderCell: (params) => (
+        <Typography variant="body2">
+          {params.value ? `${params.value} min` : "-"}
+        </Typography>
+      ),
+    },
+    {
+      field: "tags",
+      headerName: "Tags",
+      width: 200,
+      renderCell: (params) => (
+        <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5 }}>
+          {params.value.slice(0, 2).map((tag: string, index: number) => (
+            <Chip key={index} label={tag} size="small" color="secondary" />
+          ))}
+          {params.value.length > 2 && (
+            <Chip
+              label={`+${params.value.length - 2}`}
+              size="small"
+              variant="outlined"
+              color="secondary"
             />
           )}
         </Box>
@@ -336,10 +418,34 @@ const PageList: React.FC = () => {
           }}
           size="small"
         />
+
+        <FormControl sx={{ minWidth: 200 }} size="small">
+          <InputLabel>Filter by Group</InputLabel>
+          <Select
+            value={selectedGroupFilter}
+            onChange={handleGroupFilterChange}
+            label="Filter by Group"
+            sx={{
+              borderRadius: "8px",
+            }}
+          >
+            {GROUP_OPTIONS.map((option) => (
+              <MenuItem key={option.value} value={option.value}>
+                {option.label}
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
         
         {searchTerm && (
           <Typography variant="body2" color="text.secondary">
             Searching for: "{searchTerm}"
+          </Typography>
+        )}
+
+        {selectedGroupFilter && (
+          <Typography variant="body2" color="text.secondary">
+            Filtered by: {GROUP_OPTIONS.find(option => option.value === selectedGroupFilter)?.label}
           </Typography>
         )}
       </Box>
@@ -377,7 +483,7 @@ const PageList: React.FC = () => {
           paginationMode="server"
           loading={loading}
           slots={{
-            loadingOverlay: () => <TableSkeleton columns={6} />,
+            loadingOverlay: () => <TableSkeleton columns={10} />,
           }}
           disableRowSelectionOnClick
           sx={{

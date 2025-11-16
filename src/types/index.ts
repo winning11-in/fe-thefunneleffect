@@ -9,6 +9,13 @@ export interface Page {
   editorType: "summernote" | "quill";
   slug: string;
   content: string;
+  metaTitle?: string;
+  metaDescription?: string;
+  metaKeywords?: string;
+  popular?: boolean;
+  tags: string[];
+  category?: string;
+  readTime?: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -92,7 +99,13 @@ export interface CreatePageData {
   editorType: "summernote" | "quill";
   slug?: string;
   content?: string;
-  aiReferences?: string;
+  metaTitle?: string;
+  metaDescription?: string;
+  metaKeywords?: string;
+  popular?: boolean;
+  tags: string[];
+  category?: string;
+  readTime?: number;
 }
 
 export interface UpdatePageData extends CreatePageData {

@@ -32,6 +32,13 @@ import { createPage, updatePage } from "../store/slices/pagesSlice";
 import { useAIGeneration, AIProvider } from "../hooks/useAIGeneration";
 import type { CreatePageData } from "../types";
 
+// Group options for the select dropdown
+const GROUP_OPTIONS = [
+  { value: "blogs", label: "Blogs" },
+  { value: "cardiology", label: "Cardiology" },
+  { value: "case-studies", label: "Case Studies" },
+];
+
 const pageSchema = yup.object({
   title: yup
     .string()
@@ -52,7 +59,7 @@ const pageSchema = yup.object({
   audioUrl: yup.string().optional(),
   groups: yup
     .array()
-    .of(yup.string().required())
+    .of(yup.string().required().oneOf(["blogs", "cardiology", "case-studies"], "Invalid group option"))
     .defined()
     .default([])
     .max(10, "Cannot have more than 10 groups"),
@@ -72,10 +79,36 @@ const pageSchema = yup.object({
       "Slug can only contain lowercase letters, numbers, and hyphens"
     ),
   content: yup.string(),
-  aiReferences: yup
+  metaTitle: yup
     .string()
     .optional()
-    .max(1000, "AI References cannot be more than 1000 characters"),
+    .max(60, "Meta title cannot be more than 60 characters"),
+  metaDescription: yup
+    .string()
+    .optional()
+    .max(160, "Meta description cannot be more than 160 characters"),
+  metaKeywords: yup
+    .string()
+    .optional()
+    .max(255, "Meta keywords cannot be more than 255 characters"),
+  popular: yup
+    .boolean()
+    .optional(),
+  tags: yup
+    .array()
+    .of(yup.string().required())
+    .default([])
+    .max(20, "Cannot have more than 20 tags"),
+  category: yup
+    .string()
+    .optional()
+    .max(100, "Category cannot be more than 100 characters"),
+  readTime: yup
+    .number()
+    .optional()
+    .min(1, "Read time must be at least 1 minute")
+    .max(999, "Read time cannot exceed 999 minutes")
+    .integer("Read time must be a whole number"),
 }) satisfies yup.ObjectSchema<CreatePageData>;
 
 const PageForm: React.FC = () => {
@@ -86,11 +119,11 @@ const PageForm: React.FC = () => {
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [groupInput, setGroupInput] = useState("");
   const [selectedAI, setSelectedAI] = useState<AIProvider>("perplexity");
   const [imageDialogOpen, setImageDialogOpen] = useState(false);
   const [thumbnailDialogOpen, setThumbnailDialogOpen] = useState(false);
   const [audioDialogOpen, setAudioDialogOpen] = useState(false);
+  const [tagInput, setTagInput] = useState("");
 
   const { generateContent, generating } = useAIGeneration({
     onContentGenerated: (content: string) => {
@@ -123,13 +156,19 @@ const PageForm: React.FC = () => {
       editorType: "summernote" as const,
       slug: "",
       content: undefined,
-      aiReferences: "",
+      metaTitle: "",
+      metaDescription: "",
+      metaKeywords: "",
+      popular: undefined,
+      tags: [],
+      category: "",
+      readTime: undefined,
     },
   });
 
   const watchedTitle = watch("title");
-  const watchedGroups = watch("groups");
   const watchedEditorType = watch("editorType");
+  const watchedTags = watch("tags");
 
   // Auto-generate slug from title
   useEffect(() => {
@@ -163,6 +202,13 @@ const PageForm: React.FC = () => {
             editorType: page.editorType,
             slug: page.slug,
             content: page.content,
+            metaTitle: page.metaTitle || "",
+            metaDescription: page.metaDescription || "",
+            metaKeywords: page.metaKeywords || "",
+            popular: page.popular || false,
+            tags: page.tags || [],
+            category: page.category || "",
+            readTime: page.readTime || undefined,
           });
         } catch (err) {
           console.error("Error loading page:", err);
@@ -202,32 +248,33 @@ const PageForm: React.FC = () => {
     }
   };
 
-  const handleAddGroup = () => {
-    if (groupInput.trim() && !watchedGroups.includes(groupInput.trim())) {
-      setValue("groups", [...watchedGroups, groupInput.trim()]);
-      setGroupInput("");
-    }
-  };
-
-  const handleRemoveGroup = (groupToRemove: string) => {
-    setValue(
-      "groups",
-      watchedGroups.filter((group) => group !== groupToRemove)
-    );
-  };
-
-  const handleGroupInputKeyPress = (event: React.KeyboardEvent) => {
-    if (event.key === "Enter") {
-      event.preventDefault();
-      handleAddGroup();
-    }
-  };
-
   const handleGenerateContent = () => {
     const title = watch("title");
     const description = watch("description");
-    const aiReferences = watch("aiReferences");
-    generateContent(selectedAI, title, description, aiReferences);
+    generateContent(selectedAI, title, description);
+  };
+
+  const handleAddTag = () => {
+    const currentTags = watchedTags || [];
+    if (tagInput.trim() && !currentTags.includes(tagInput.trim()) && currentTags.length < 20) {
+      setValue("tags", [...currentTags, tagInput.trim()]);
+      setTagInput("");
+    }
+  };
+
+  const handleRemoveTag = (tagToRemove: string) => {
+    const currentTags = watchedTags || [];
+    setValue(
+      "tags",
+      currentTags.filter((tag) => tag !== tagToRemove)
+    );
+  };
+
+  const handleTagInputKeyPress = (event: React.KeyboardEvent) => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      handleAddTag();
+    }
   };
 
   const handleImageSelect = (imageUrl: string) => {
@@ -268,7 +315,7 @@ const PageForm: React.FC = () => {
       )}
 
       <Box sx={{ py: 2 }}>
-        <form onSubmit={handleSubmit(onSubmit)}>
+        <form onSubmit={handleSubmit(onSubmit as any)}>
           <Box
             sx={{
               display: "flex",
@@ -530,13 +577,84 @@ const PageForm: React.FC = () => {
                   <Typography variant="body1" sx={{ mb: 1, fontSize: "13px" }}>
                     Groups
                   </Typography>
+                  <Controller
+                    name="groups"
+                    control={control}
+                    render={({ field }) => (
+                      <FormControl fullWidth error={!!errors.groups}>
+                        <Select
+                          {...field}
+                          multiple
+                          value={field.value || []}
+                          renderValue={(selected) => (
+                            <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5 }}>
+                              {(selected as string[]).map((value) => (
+                                <Chip
+                                  key={value}
+                                  label={GROUP_OPTIONS.find(option => option.value === value)?.label || value}
+                                  size="small"
+                                />
+                              ))}
+                            </Box>
+                          )}
+                          sx={{
+                            borderRadius: "8px",
+                          }}
+                        >
+                          {GROUP_OPTIONS.map((option) => (
+                            <MenuItem key={option.value} value={option.value}>
+                              {option.label}
+                            </MenuItem>
+                          ))}
+                        </Select>
+                        {errors.groups && (
+                          <FormHelperText>{errors.groups.message}</FormHelperText>
+                        )}
+                      </FormControl>
+                    )}
+                  />
+                </Grid>
+
+                <Grid item xs={12}>
+                  <Typography variant="body1" sx={{ mb: 1, fontSize: "13px" }}>
+                    Popular Post
+                  </Typography>
+                  <Controller
+                    name="popular"
+                    control={control}
+                    render={({ field }) => (
+                      <FormControl fullWidth error={!!errors.popular}>
+                        <Select
+                          {...field}
+                          value={field.value ? "true" : "false"}
+                          onChange={(e) => field.onChange(e.target.value === "true")}
+                          sx={{
+                            borderRadius: "8px",
+                          }}
+                        >
+                          <MenuItem value="false">No</MenuItem>
+                          <MenuItem value="true">Yes</MenuItem>
+                        </Select>
+                        {errors.popular && (
+                          <FormHelperText>{errors.popular.message}</FormHelperText>
+                        )}
+                      </FormControl>
+                    )}
+                  />
+                </Grid>
+
+                <Grid item xs={12}>
+                  <Typography variant="body1" sx={{ mb: 1, fontSize: "13px" }}>
+                    Tags
+                  </Typography>
                   <Box>
                     <TextField
                       fullWidth
-                      value={groupInput}
-                      onChange={(e) => setGroupInput(e.target.value)}
-                      onKeyPress={handleGroupInputKeyPress}
-                      helperText=""
+                      value={tagInput}
+                      onChange={(e) => setTagInput(e.target.value)}
+                      onKeyPress={handleTagInputKeyPress}
+                      placeholder="Add tags (max 20)"
+                      helperText={`${(watchedTags || []).length}/20 tags`}
                       sx={{
                         "& .MuiOutlinedInput-root": {
                           borderRadius: "8px",
@@ -546,11 +664,11 @@ const PageForm: React.FC = () => {
                     <Box
                       sx={{ display: "flex", flexWrap: "wrap", gap: 1, mt: 1 }}
                     >
-                      {watchedGroups.map((group, index) => (
+                      {(watchedTags || []).map((tag, index) => (
                         <Chip
                           key={index}
-                          label={group}
-                          onDelete={() => handleRemoveGroup(group)}
+                          label={tag}
+                          onDelete={() => handleRemoveTag(tag)}
                         />
                       ))}
                     </Box>
@@ -559,10 +677,91 @@ const PageForm: React.FC = () => {
 
                 <Grid item xs={12}>
                   <Typography variant="body1" sx={{ mb: 1, fontSize: "13px" }}>
-                    AI References
+                    Category
                   </Typography>
                   <Controller
-                    name="aiReferences"
+                    name="category"
+                    control={control}
+                    render={({ field }) => (
+                      <TextField
+                        {...field}
+                        fullWidth
+                        placeholder="Enter category"
+                        error={!!errors.category}
+                        helperText={errors.category?.message}
+                        sx={{
+                          "& .MuiOutlinedInput-root": {
+                            borderRadius: "8px",
+                          },
+                        }}
+                      />
+                    )}
+                  />
+                </Grid>
+
+                <Grid item xs={12}>
+                  <Typography variant="body1" sx={{ mb: 1, fontSize: "13px" }}>
+                    Read Time (minutes)
+                  </Typography>
+                  <Controller
+                    name="readTime"
+                    control={control}
+                    render={({ field }) => (
+                      <TextField
+                        {...field}
+                        fullWidth
+                        type="number"
+                        placeholder="Enter read time in minutes"
+                        error={!!errors.readTime}
+                        helperText={errors.readTime?.message}
+                        inputProps={{ min: 1, max: 999 }}
+                        sx={{
+                          "& .MuiOutlinedInput-root": {
+                            borderRadius: "8px",
+                          },
+                        }}
+                      />
+                    )}
+                  />
+                </Grid>
+
+                {/* SEO Fields Section */}
+                <Grid item xs={12}>
+                  <Typography variant="h6" sx={{ mb: 2, mt: 2, color: "primary.main" }}>
+                    SEO Settings
+                  </Typography>
+                </Grid>
+
+                <Grid item xs={12}>
+                  <Typography variant="body1" sx={{ mb: 1, fontSize: "13px" }}>
+                    Meta Title
+                  </Typography>
+                  <Controller
+                    name="metaTitle"
+                    control={control}
+                    render={({ field }) => (
+                      <TextField
+                        {...field}
+                        fullWidth
+                        placeholder="SEO meta title (max 60 characters)"
+                        error={!!errors.metaTitle}
+                        helperText={errors.metaTitle?.message}
+                        sx={{
+                          "& .MuiOutlinedInput-root": {
+                            borderRadius: "8px",
+                          },
+                        }}
+                      />
+                    )}
+                  />
+                </Grid>
+
+                <Grid item xs={12}>
+                  <Typography variant="body1" sx={{ mb: 1, fontSize: "13px" }}>
+                    Meta Description
+                  </Typography>
+                  <Controller
+                    name="metaDescription"
                     control={control}
                     render={({ field }) => (
                       <TextField
@@ -570,9 +769,33 @@ const PageForm: React.FC = () => {
                         fullWidth
                         multiline
                         rows={3}
-                        placeholder="Enter any references, website links, or additional prompts for AI content generation..."
-                        error={!!errors.aiReferences}
-                        helperText={errors.aiReferences?.message}
+                        placeholder="SEO meta description (max 160 characters)"
+                        error={!!errors.metaDescription}
+                        helperText={errors.metaDescription?.message}
+                        sx={{
+                          "& .MuiOutlinedInput-root": {
+                            borderRadius: "8px",
+                          },
+                        }}
+                      />
+                    )}
+                  />
+                </Grid>
+
+                <Grid item xs={12}>
+                  <Typography variant="body1" sx={{ mb: 1, fontSize: "13px" }}>
+                    Meta Keywords
+                  </Typography>
+                  <Controller
+                    name="metaKeywords"
+                    control={control}
+                    render={({ field }) => (
+                      <TextField
+                        {...field}
+                        fullWidth
+                        placeholder="SEO meta keywords (comma separated, max 255 characters)"
+                        error={!!errors.metaKeywords}
+                        helperText={errors.metaKeywords?.message}
                         sx={{
                           "& .MuiOutlinedInput-root": {
                             borderRadius: "8px",
