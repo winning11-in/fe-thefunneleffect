@@ -31,6 +31,7 @@ import {
   deleteContactById,
   setPagination,
   clearError,
+  forceRefresh,
 } from "../store/slices/contactsSlice";
 import type { Contact } from "../types";
 import TableSkeleton from "../components/TableSkeleton";
@@ -42,26 +43,55 @@ const ContactList: React.FC = () => {
     loading,
     error,
     pagination,
+    searchTerm: reduxSearchTerm,
+    lastFetched,
   } = useAppSelector((state) => state.contacts);
 
-  const [searchTerm, setSearchTerm] = useState("");
-  const [searchInput, setSearchInput] = useState("");
-  const [searchTimeout, setSearchTimeout] = useState<NodeJS.Timeout | null>(null);
+  const [searchTerm, setSearchTerm] = useState(reduxSearchTerm);
+  const [searchInput, setSearchInput] = useState(reduxSearchTerm);
+  const [searchTimeout, setSearchTimeout] = useState<NodeJS.Timeout | null>(
+    null
+  );
   const [descriptionDialogOpen, setDescriptionDialogOpen] = useState(false);
   const [selectedDescription, setSelectedDescription] = useState("");
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [contactToDelete, setContactToDelete] = useState<Contact | null>(null);
 
+  // Initialize local state from Redux on mount
   useEffect(() => {
-    // Fetch contacts when pagination changes or search term changes
-    dispatch(
-      fetchContacts({
-        page: pagination.page,
-        pageSize: pagination.pageSize,
-        search: searchTerm,
-      })
-    );
-  }, [dispatch, pagination.page, pagination.pageSize, searchTerm]);
+    setSearchTerm(reduxSearchTerm);
+    setSearchInput(reduxSearchTerm);
+  }, [reduxSearchTerm]);
+
+  useEffect(() => {
+    // Check if we need to fetch data
+    const shouldFetch =
+      !lastFetched || // No data cached
+      contacts.length === 0 || // No contacts in state
+      searchTerm !== reduxSearchTerm; // Search term changed
+
+    if (shouldFetch) {
+      dispatch(
+        fetchContacts({
+          page: pagination.page,
+          pageSize: pagination.pageSize,
+          search: searchTerm,
+        })
+      );
+    }
+  }, [
+    dispatch,
+    pagination.page,
+    pagination.pageSize,
+    searchTerm,
+    reduxSearchTerm,
+    lastFetched,
+    contacts.length,
+  ]);
+
+  const handleRefresh = () => {
+    dispatch(forceRefresh());
+  };
 
   // Clear error when component unmounts
   useEffect(() => {
@@ -75,12 +105,12 @@ const ContactList: React.FC = () => {
   const handleSearchChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const value = event.target.value;
     setSearchInput(value);
-    
+
     // Clear existing timeout
     if (searchTimeout) {
       clearTimeout(searchTimeout);
     }
-    
+
     // Set new timeout for debounced search
     const timeout = setTimeout(() => {
       setSearchTerm(value);
@@ -92,7 +122,7 @@ const ContactList: React.FC = () => {
         })
       );
     }, 500);
-    
+
     setSearchTimeout(timeout);
   };
 
@@ -117,7 +147,7 @@ const ContactList: React.FC = () => {
       await dispatch(deleteContactById(contactToDelete._id));
       setDeleteDialogOpen(false);
       setContactToDelete(null);
-      
+
       // If this was the last item on the current page and we're not on page 1,
       // go back to the previous page
       if (contacts.length === 1 && pagination.page > 1) {
@@ -139,7 +169,7 @@ const ContactList: React.FC = () => {
   }) => {
     const newPage = newPaginationModel.page + 1; // Convert to 1-based
     const newPageSize = newPaginationModel.pageSize;
-    
+
     // Only dispatch if pagination actually changed
     if (newPage !== pagination.page || newPageSize !== pagination.pageSize) {
       dispatch(
@@ -149,16 +179,6 @@ const ContactList: React.FC = () => {
         })
       );
     }
-  };
-
-  const handleRefresh = () => {
-    dispatch(
-      fetchContacts({
-        page: pagination.page,
-        pageSize: pagination.pageSize,
-        search: searchTerm,
-      })
-    );
   };
 
   const handleViewDescription = (description: string) => {
@@ -221,7 +241,7 @@ const ContactList: React.FC = () => {
               size="small"
               startIcon={<VisibilityIcon />}
               onClick={() => handleViewDescription(params.value)}
-              sx={{ mt: 0.5, minHeight: 'auto', py: 0.5 }}
+              sx={{ mt: 0.5, minHeight: "auto", py: 0.5 }}
             >
               View Full
             </Button>
@@ -337,7 +357,7 @@ const ContactList: React.FC = () => {
           }}
           size="small"
         />
-        
+
         {searchTerm && (
           <Typography variant="body2" color="text.secondary">
             Searching for: "{searchTerm}"
@@ -353,7 +373,8 @@ const ContactList: React.FC = () => {
 
       {!loading && contacts.length === 0 && searchTerm && (
         <Alert severity="info" sx={{ mb: 2 }}>
-          No contacts found matching "{searchTerm}". Try adjusting your search terms.
+          No contacts found matching "{searchTerm}". Try adjusting your search
+          terms.
         </Alert>
       )}
 
@@ -434,8 +455,8 @@ const ContactList: React.FC = () => {
         <DialogTitle>Delete Contact</DialogTitle>
         <DialogContent>
           <DialogContentText>
-            Are you sure you want to delete the contact "{contactToDelete?.name}"?
-            This action cannot be undone.
+            Are you sure you want to delete the contact "{contactToDelete?.name}
+            "? This action cannot be undone.
           </DialogContentText>
         </DialogContent>
         <DialogActions>

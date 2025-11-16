@@ -75,11 +75,15 @@ const contactsSlice = createSlice({
     clearError: (state) => {
       state.error = null
     },
+    forceRefresh: (state) => {
+      state.lastFetched = null
+    },
   },
   extraReducers: (builder) => {
     builder
       .addCase(fetchContacts.pending, (state) => {
-        state.loading = true
+        // Only show loading if we don't have cached data
+        state.loading = state.items.length === 0
         state.error = null
       })
       .addCase(fetchContacts.fulfilled, (state, action) => {
@@ -118,5 +122,5 @@ const contactsSlice = createSlice({
   },
 })
 
-export const { setSearchTerm, setPagination, clearContacts, clearError } = contactsSlice.actions
+export const { setSearchTerm, setPagination, clearContacts, clearError, forceRefresh } = contactsSlice.actions
 export default contactsSlice.reducer

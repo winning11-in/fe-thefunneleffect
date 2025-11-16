@@ -31,6 +31,7 @@ import {
   Trash2 as DeleteIcon,
   Search as SearchIcon,
   Eye as VisibilityIcon,
+  RefreshCw as RefreshIcon,
 } from "lucide-react";
 import { useAppDispatch, useAppSelector } from "../store/hooks";
 import {
@@ -38,6 +39,7 @@ import {
   deletePage,
   setPagination,
   setGroupFilter,
+  forceRefresh,
 } from "../store/slices/pagesSlice";
 import type { Page } from "../types";
 import TableSkeleton from "../components/TableSkeleton";
@@ -58,29 +60,48 @@ const PageList: React.FC = () => {
     loading,
     error,
     pagination,
+    searchTerm: reduxSearchTerm,
+    groupFilter: reduxGroupFilter,
+    lastFetched,
   } = useAppSelector((state) => state.pages);
 
   const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false);
   const [pageToDelete, setPageToDelete] = React.useState<Page | null>(null);
-  const [searchTerm, setSearchTerm] = React.useState("");
-  const [searchInput, setSearchInput] = React.useState(""); // Local input state
+  const [searchTerm, setSearchTerm] = React.useState(reduxSearchTerm);
+  const [searchInput, setSearchInput] = React.useState(reduxSearchTerm); // Local input state
   const [searchTimeout, setSearchTimeout] = React.useState<NodeJS.Timeout | null>(null);
-  const [selectedGroupFilter, setSelectedGroupFilter] = React.useState(""); // Local group filter state
+  const [selectedGroupFilter, setSelectedGroupFilter] = React.useState(reduxGroupFilter); // Local group filter state
 
   const [imageDialogOpen, setImageDialogOpen] = React.useState(false);
   const [selectedImage, setSelectedImage] = React.useState<string>("");
 
+  // Initialize local state from Redux on mount
+  React.useEffect(() => {
+    setSearchTerm(reduxSearchTerm);
+    setSearchInput(reduxSearchTerm);
+    setSelectedGroupFilter(reduxGroupFilter);
+  }, [reduxSearchTerm, reduxGroupFilter]);
+
   useEffect(() => {
-    // Fetch pages when pagination changes, search term changes, or group filter changes
-    dispatch(
-      fetchPages({
-        page: pagination.page,
-        pageSize: pagination.pageSize,
-        search: searchTerm,
-        group: selectedGroupFilter,
-      })
+    // Check if we need to fetch data
+    const shouldFetch = (
+      !lastFetched || // No data cached
+      pages.length === 0 || // No pages in state
+      searchTerm !== reduxSearchTerm || // Search term changed
+      selectedGroupFilter !== reduxGroupFilter // Group filter changed
     );
-  }, [dispatch, pagination.page, pagination.pageSize, searchTerm, selectedGroupFilter]);
+
+    if (shouldFetch) {
+      dispatch(
+        fetchPages({
+          page: pagination.page,
+          pageSize: pagination.pageSize,
+          search: searchTerm,
+          group: selectedGroupFilter,
+        })
+      );
+    }
+  }, [dispatch, pagination.page, pagination.pageSize, searchTerm, selectedGroupFilter, reduxSearchTerm, reduxGroupFilter, lastFetched, pages.length]);
 
   const handleEdit = (id: string) => {
     navigate(`/pages/edit/${id}`);
@@ -149,6 +170,10 @@ const PageList: React.FC = () => {
         pageSize: pagination.pageSize,
       })
     );
+  };
+
+  const handleRefresh = () => {
+    dispatch(forceRefresh());
   };
 
   // Cleanup timeout on unmount
@@ -381,20 +406,36 @@ const PageList: React.FC = () => {
         <Typography variant="h6" component="h1">
           Pages
         </Typography>
-        <Button
-          variant="contained"
-          startIcon={<AddIcon size={20} />}
-          onClick={() => navigate("/pages/new")}
-          sx={{
-            borderRadius: "8px",
-            textTransform: "none",
-            fontWeight: 500,
-            px: 3,
-            py: 1,
-          }}
-        >
-          Create New Page
-        </Button>
+        <Box sx={{ display: "flex", gap: 1 }}>
+          <Button
+            variant="outlined"
+            startIcon={<RefreshIcon size={20} />}
+            onClick={handleRefresh}
+            sx={{
+              borderRadius: "8px",
+              textTransform: "none",
+              fontWeight: 500,
+              px: 2,
+              py: 1,
+            }}
+          >
+            Refresh
+          </Button>
+          <Button
+            variant="contained"
+            startIcon={<AddIcon size={20} />}
+            onClick={() => navigate("/pages/new")}
+            sx={{
+              borderRadius: "8px",
+              textTransform: "none",
+              fontWeight: 500,
+              px: 3,
+              py: 1,
+            }}
+          >
+            Create New Page
+          </Button>
+        </Box>
       </Box>
 
       <Box sx={{ display: "flex", gap: 2, mb: 2, alignItems: "center" }}>

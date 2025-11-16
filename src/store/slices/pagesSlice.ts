@@ -94,11 +94,15 @@ const pagesSlice = createSlice({
       state.items = []
       state.lastFetched = null
     },
+    forceRefresh: (state) => {
+      state.lastFetched = null
+    },
   },
   extraReducers: (builder) => {
     builder
       .addCase(fetchPages.pending, (state) => {
-        state.loading = true
+        // Only show loading if we don't have cached data
+        state.loading = state.items.length === 0
         state.error = null
       })
       .addCase(fetchPages.fulfilled, (state, action) => {
@@ -134,5 +138,5 @@ const pagesSlice = createSlice({
   },
 })
 
-export const { setSearchTerm, setGroupFilter, setPagination, clearPages } = pagesSlice.actions
+export const { setSearchTerm, setGroupFilter, setPagination, clearPages, forceRefresh } = pagesSlice.actions
 export default pagesSlice.reducer
