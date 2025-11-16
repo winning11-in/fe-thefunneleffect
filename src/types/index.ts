@@ -6,7 +6,6 @@ export interface Page {
   thumbnailUrl: string;
   audioUrl?: string;
   groups: string[];
-  editorType: "summernote" | "quill";
   slug: string;
   content: string;
   metaTitle?: string;
@@ -96,7 +95,6 @@ export interface CreatePageData {
   thumbnailUrl: string;
   audioUrl?: string;
   groups: string[];
-  editorType: "summernote" | "quill";
   slug?: string;
   content?: string;
   metaTitle?: string;

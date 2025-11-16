@@ -24,7 +24,6 @@ import { pagesAPI } from "../services/api";
 import SummernoteEditor, {
   SummernoteEditorRef,
 } from "../components/SummernoteEditor";
-import QuillEditor, { QuillEditorRef } from "../components/QuillEditor";
 import ImageDialog from "../components/ImageDialog";
 import AudioDialog from "../components/AudioDialog";
 import { useAppDispatch } from "../store/hooks";
@@ -63,13 +62,7 @@ const pageSchema = yup.object({
     .defined()
     .default([])
     .max(10, "Cannot have more than 10 groups"),
-  editorType: yup
-    .string()
-    .required("Editor type is required")
-    .oneOf(
-      ["summernote", "quill"] as const,
-      "Editor type must be summernote or quill"
-    ),
+
   slug: yup
     .string()
     .optional()
@@ -135,7 +128,6 @@ const PageForm: React.FC = () => {
   });
 
   const summernoteRef = useRef<SummernoteEditorRef>(null);
-  const quillRef = useRef<QuillEditorRef>(null);
 
   const {
     control,
@@ -153,7 +145,6 @@ const PageForm: React.FC = () => {
       thumbnailUrl: "",
       audioUrl: "",
       groups: [],
-      editorType: "summernote" as const,
       slug: "",
       content: undefined,
       metaTitle: "",
@@ -167,7 +158,6 @@ const PageForm: React.FC = () => {
   });
 
   const watchedTitle = watch("title");
-  const watchedEditorType = watch("editorType");
   const watchedTags = watch("tags");
 
   // Auto-generate slug from title
@@ -199,7 +189,6 @@ const PageForm: React.FC = () => {
             thumbnailUrl: page.thumbnailUrl,
             audioUrl: page.audioUrl,
             groups: page.groups,
-            editorType: page.editorType,
             slug: page.slug,
             content: page.content,
             metaTitle: page.metaTitle || "",
@@ -224,10 +213,8 @@ const PageForm: React.FC = () => {
 
   const onSubmit = async (data: CreatePageData) => {
     let currentContent = data.content;
-    if (data.editorType === "summernote" && summernoteRef.current) {
+    if (summernoteRef.current) {
       currentContent = summernoteRef.current.getContent();
-    } else if (data.editorType === "quill" && quillRef.current) {
-      currentContent = quillRef.current.getContent();
     }
     const finalData = { ...data, content: currentContent };
     try {
@@ -545,33 +532,7 @@ const PageForm: React.FC = () => {
                   </Box>
                 </Grid> */}
 
-                <Grid item xs={12}>
-                  <Typography variant="body1" sx={{ mb: 1, fontSize: "13px" }}>
-                    Editor Type *
-                  </Typography>
-                  <Controller
-                    name="editorType"
-                    control={control}
-                    render={({ field }) => (
-                      <FormControl fullWidth error={!!errors.editorType}>
-                        <Select
-                          {...field}
-                          sx={{
-                            borderRadius: "8px",
-                          }}
-                        >
-                          <MenuItem value="summernote">
-                            Summernote Editor
-                          </MenuItem>
-                          <MenuItem value="quill">Quill Editor</MenuItem>
-                        </Select>
-                        <FormHelperText>
-                          {errors.editorType?.message}
-                        </FormHelperText>
-                      </FormControl>
-                    )}
-                  />
-                </Grid>
+
 
                 <Grid item xs={12}>
                   <Typography variant="body1" sx={{ mb: 1, fontSize: "13px" }}>
@@ -888,48 +849,25 @@ const PageForm: React.FC = () => {
                             </Button>
                           </Box>
                         </Box>
-                        {watchedEditorType === "summernote" ? (
-                          <Box
-                            sx={{
-                              "& .note-editable": {
-                                backgroundColor: "#ffffff",
-                                minHeight: "600px",
-                                lineHeight: "1.5 !important",
-                                fontFamily: "'Inter', sans-serif",
-                              },
-                            }}
-                          >
-                            <SummernoteEditor
-                              ref={summernoteRef}
-                              value={field.value}
-                              onChange={field.onChange}
-                              placeholder="Enter your page content here..."
-                              height={11800}
-                            />
-                          </Box>
-                        ) : watchedEditorType === "quill" ? (
-                          <QuillEditor
-                            ref={quillRef}
+                        {/* Summernote Editor */}
+                        <Box
+                          sx={{
+                            "& .note-editable": {
+                              backgroundColor: "#ffffff",
+                              minHeight: "600px",
+                              lineHeight: "1.5 !important",
+                              fontFamily: "'Inter', sans-serif",
+                            },
+                          }}
+                        >
+                          <SummernoteEditor
+                            ref={summernoteRef}
                             value={field.value}
                             onChange={field.onChange}
                             placeholder="Enter your page content here..."
-                            height={700}
+                            height={11800}
                           />
-                        ) : (
-                          <TextField
-                            {...field}
-                            multiline
-                            rows={15}
-                            fullWidth
-                            placeholder="Enter your page content here..."
-                            variant="outlined"
-                            sx={{
-                              "& .MuiOutlinedInput-root": {
-                                borderRadius: "8px",
-                              },
-                            }}
-                          />
-                        )}
+                        </Box>
                         {errors.content && (
                           <FormHelperText error>
                             {errors.content.message}
