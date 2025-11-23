@@ -112,7 +112,7 @@ const PageForm: React.FC = () => {
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [selectedAI, setSelectedAI] = useState<AIProvider>("perplexity");
+  const [selectedAI, setSelectedAI] = useState<AIProvider>("gemini");
   const [imageDialogOpen, setImageDialogOpen] = useState(false);
   const [thumbnailDialogOpen, setThumbnailDialogOpen] = useState(false);
   const [audioDialogOpen, setAudioDialogOpen] = useState(false);

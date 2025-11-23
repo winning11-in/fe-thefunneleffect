@@ -26,36 +26,74 @@ export const useAIGeneration = ({
 
     setGenerating(true);
 
+    // 🔥 Optimized Prompt (Used for both APIs)
+    const finalPrompt = `
+You are an expert content writer who specializes in creating engaging, high-quality, SEO-friendly blog articles that feel natural, human, and story-driven.
+
+Your task:
+Create a fully polished, well-structured, professional blog article in clean HTML.
+
+---------------------------------------
+🔶 STRUCTURE REQUIREMENTS
+---------------------------------------
+1. Begin with the title inside an <h1> tag
+2. Add a compelling introduction (<p>) that hooks the reader
+3. Create 4–6 major sections using <h2> tags
+4. Add <h3> subsections when needed for clarity
+5. Use <p> for all paragraphs
+6. Use <ul><li> or <ol><li> lists for steps, best practices, key points
+7. Use <strong> and <em> for highlights
+8. Add real-world examples, scenarios, or case-style explanations
+9. Add transitions between sections so the flow feels human
+10. End with a strong conclusion that summarizes and encourages action
+
+---------------------------------------
+🔶 CONTENT GUIDELINES
+---------------------------------------
+- The tone must be friendly, expert, modern, and conversational
+- Avoid robotic or repetitive phrasing
+- Ensure the article feels engaging and reader-first
+- Include insights, tips, warnings, and common mistakes
+- Make the article informational, valuable, and enjoyable
+- Keep paragraphs short and readable
+- Maintain SEO-friendly structure (headings, semantic clarity, key phrases)
+
+---------------------------------------
+🔶 OUTPUT RULES
+---------------------------------------
+- Output pure HTML only
+- No markdown, no code blocks, no backticks
+- Do NOT say anything extra — only output the HTML article
+
+---------------------------------------
+🔶 INPUT
+---------------------------------------
+Title: "${title}"
+Description: "${description}"
+${references ? `Additional References: ${references}` : ""}
+`;
+
     try {
       let generatedContent = "";
 
+      // --------------------------
+      // 🌟 GEMINI GENERATION
+      // --------------------------
       if (provider === "gemini") {
-        const apiKey = (import.meta as any).env.VITE_GEMINI_API_KEY;
+        const apiKey = "AIzaSyDwKDMYJnEGzJuhSqmEEFYYEBwSK4zzQ-c";
         if (!apiKey) {
           throw new Error("Gemini API key not configured");
         }
-        // Call Gemini API
+
         const response = await fetch(
           `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
           {
             method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
+            headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               contents: [
                 {
-                  parts: [
-                    {
-                      text: `Write a comprehensive and engaging blog post based on the following title and description. Create natural, flowing content that feels authentic and valuable to readers. Use descriptive headings for different sections, include relevant examples or insights where they fit naturally, and format with appropriate HTML tags like <h2> for headings, <p> for paragraphs, <strong> for emphasis, and <ul>/<li> for lists when helpful.
-
-Title: "${title}"
-Description: "${description}"
-${references ? `Additional References: ${references}` : ''}
-
-Focus on creating content that reads like it was written by a knowledgeable expert, not an AI. Avoid forced conclusions or overly structured formats.`,
-                    },
-                  ],
+                  parts: [{ text: finalPrompt }],
                 },
               ],
             }),
@@ -67,13 +105,20 @@ Focus on creating content that reads like it was written by a knowledgeable expe
         }
 
         const data = await response.json();
-        generatedContent = data.candidates[0].content.parts[0].text;
-      } else if (provider === "perplexity") {
+        generatedContent = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
+        generatedContent = generatedContent.replace(/^```html\s*/, '').replace(/\s*```$/, '');
+
+      }
+
+      // --------------------------
+      // 🌟 PERPLEXITY GENERATION
+      // --------------------------
+      else if (provider === "perplexity") {
         const apiKey = (import.meta as any).env.VITE_PERPLEXITY_API_KEY;
         if (!apiKey) {
           throw new Error("Perplexity API key not configured");
         }
-        // Call Perplexity API
+
         const response = await fetch(
           "https://api.perplexity.ai/chat/completions",
           {
@@ -87,12 +132,7 @@ Focus on creating content that reads like it was written by a knowledgeable expe
               messages: [
                 {
                   role: "user",
-                  content: `Write a comprehensive and engaging blog post based on the following title and description. Create natural, flowing content that feels authentic and valuable to readers. Use descriptive headings for different sections, include relevant examples or insights where they fit naturally, and format with appropriate HTML tags like <h2> for headings, <p> for paragraphs, <strong> for emphasis, and <ul>/<li> for lists when helpful.
-
-Title: "${title}"
-Description: "${description}"
-
-Focus on creating content that reads like it was written by a knowledgeable expert, not an AI. Avoid forced conclusions or overly structured formats.`,
+                  content: finalPrompt,
                 },
               ],
             }),
@@ -104,9 +144,12 @@ Focus on creating content that reads like it was written by a knowledgeable expe
         }
 
         const data = await response.json();
-        generatedContent = data.choices[0].message.content;
+        generatedContent = data.choices?.[0]?.message?.content || "";
+        generatedContent = generatedContent.replace(/^```html\s*/, '').replace(/\s*```$/, '');
+
       }
 
+      // Returned HTML
       onContentGenerated(generatedContent);
     } catch (err) {
       console.error("Error generating content:", err);
